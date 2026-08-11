@@ -1,0 +1,23 @@
+<!-- One vertical pickleball court: net horizontal, two player slots top, two bottom.
+     Requires templates/court.css. Placeholders: {{COURT}}, {{TEAM_TOP}}, {{TEAM_BOTTOM}},
+     {{PLAYER_1}}..{{PLAYER_4}} (1–2 top side, 3–4 bottom side). -->
+<section class="court-tpl">
+  <div class="card-head">
+    <span class="court-name">{{COURT}}</span>
+    <span class="court-no">Doubles</span>
+  </div>
+
+  <div class="side-label">{{TEAM_TOP}}</div>
+
+  <div class="court">
+    <div class="zone svc tl"><input class="player" type="text" placeholder="{{PLAYER_1}}" aria-label="{{COURT}}, top side, player 1"></div>
+    <div class="zone svc tr"><input class="player" type="text" placeholder="{{PLAYER_2}}" aria-label="{{COURT}}, top side, player 2"></div>
+    <div class="zone kitchen near"></div>
+    <div class="zone kitchen far"></div>
+    <div class="zone svc bl"><input class="player" type="text" placeholder="{{PLAYER_3}}" aria-label="{{COURT}}, bottom side, player 1"></div>
+    <div class="zone svc br"><input class="player" type="text" placeholder="{{PLAYER_4}}" aria-label="{{COURT}}, bottom side, player 2"></div>
+    <div class="net"></div>
+  </div>
+
+  <div class="side-label">{{TEAM_BOTTOM}}</div>
+</section>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>North Shore Pickleball Club — Round Robin</title>
+<style>
+  :root {
+    --bg-0: #0b1220;
+    --bg-1: #101a2e;
+    --ink: #eef4ff;
+    --ink-dim: #93a4c4;
+    --line: rgba(255,255,255,.92);
+    --court-in: #1f6f5c;   /* kitchen / non-volley zone */
+    --court-out: #1f4f8f;  /* service boxes */
+    --accent: #ffd166;
+    --card: rgba(255,255,255,.05);
+    --stroke: rgba(255,255,255,.12);
+    --shadow: 0 18px 40px -18px rgba(0,0,0,.75);
+    --r: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: clamp(20px, 3vw, 44px) clamp(16px, 3vw, 40px) 56px;
+    background:
+      radial-gradient(1100px 600px at 12% -10%, #1b3358 0%, transparent 60%),
+      radial-gradient(900px 520px at 100% 0%, #14503f 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    background-repeat: no-repeat;
+    background-color: var(--bg-0);
+    color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    max-width: 1500px;
+    margin: 0 auto clamp(22px, 3vw, 40px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 18px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--stroke);
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(26px, 4.2vw, 52px);
+    line-height: 1.04;
+    font-weight: 800;
+    letter-spacing: -.025em;
+  }
+  h1 .sep { color: var(--ink-dim); font-weight: 300; }
+  h1 .rr {
+    background: linear-gradient(92deg, var(--accent), #7ee0b8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    color: var(--ink-dim);
+    font-size: 14px;
+  }
+  .pill {
+    padding: 8px 14px;
+    border: 1px solid var(--stroke);
+    border-radius: 999px;
+    background: var(--card);
+    white-space: nowrap;
+  }
+
+  /* ---------- Court grid: 3 across, 2 down ---------- */
+  .courts {
+    max-width: 1500px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(18px, 2.2vw, 34px);
+  }
+  @media (max-width: 1080px) { .courts { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 720px)  { .courts { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--stroke);
+    border-radius: var(--r);
+    padding: 14px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(6px);
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 2px 4px 12px;
+  }
+  .court-name { font-size: 16px; font-weight: 700; letter-spacing: .01em; }
+  .court-no {
+    font-size: 11px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  /* ---------- The court ---------- */
+  .court {
+    position: relative;
+    aspect-ratio: 20 / 34;              /* portrait court, slightly foreshortened to fit */
+    max-width: 340px;
+    margin-inline: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 15fr 7fr 7fr 15fr;     /* service / kitchen / kitchen / service */
+    border: 3px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--court-out);
+    box-shadow: inset 0 0 60px rgba(0,0,0,.35);
+  }
+  .zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 8px;
+    min-width: 0;
+  }
+  .svc.tl, .svc.tr { align-items: flex-start; }
+  .svc.bl, .svc.br { align-items: flex-end; }
+  .svc { border: 0 solid var(--line); }
+  .svc.tl { grid-area: 1 / 1; border-width: 0 2px 2px 0; }   /* top-left */
+  .svc.tr { grid-area: 1 / 2; border-width: 0 0 2px 0; }     /* top-right */
+  .svc.bl { grid-area: 4 / 1; border-width: 2px 2px 0 0; }   /* bottom-left */
+  .svc.br { grid-area: 4 / 2; border-width: 2px 0 0 0; }     /* bottom-right */
+
+  .kitchen { background: var(--court-in); }
+  .kitchen.near { grid-area: 2 / 1 / 3 / 3; }
+  .kitchen.far  { grid-area: 3 / 1 / 4 / 3; }
+
+  /* Net */
+  .net {
+    position: absolute;
+    inset: 0 -4% 0 -4%;
+    top: 50%;
+    height: 6px;
+    transform: translateY(-50%);
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.85) 0 3px, rgba(255,255,255,.25) 3px 6px);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 0 22px rgba(0,0,0,.5);
+    border-radius: 3px;
+    pointer-events: none;
+  }
+  .net::before, .net::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px; height: 12px;
+    background: var(--ink);
+    border-radius: 50%;
+  }
+  .net::before { left: -6px; }
+  .net::after  { right: -6px; }
+
+  /* ---------- Player name slots ---------- */
+  .player {
+    width: 100%;
+    max-width: 100%;
+    text-align: center;
+    font: 600 clamp(11px, 1.05vw, 15px)/1.25 inherit;
+    color: #fff;
+    background: rgba(8,14,26,.42);
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 8px;
+    padding: 8px 6px;
+    outline: none;
+    text-overflow: ellipsis;
+    transition: background .15s, border-color .15s, box-shadow .15s;
+  }
+  .player::placeholder { color: rgba(255,255,255,.5); font-weight: 500; }
+  .player:hover { background: rgba(8,14,26,.55); }
+  .player:focus {
+    background: rgba(8,14,26,.75);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255,209,102,.25);
+  }
+
+  /* Side labels above and below the court */
+  .side-label {
+    text-align: center;
+    margin: 8px 4px;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  footer {
+    max-width: 1500px;
+    margin: clamp(28px, 4vw, 48px) auto 0;
+    color: var(--ink-dim);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  @media print {
+    body { background: #fff; color: #000; padding: 12mm; }
+    .card { box-shadow: none; background: #fff; border-color: #999; }
+    .courts { gap: 8mm; }
+    .eyebrow, .rr { color: #000 !important; -webkit-text-fill-color: #000; }
+    .meta, footer { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <p class="eyebrow">North Shore Pickleball Club</p>
+    <h1>North Shore Pickleball Club <span class="sep">—</span> <span class="rr">Round Robin</span></h1>
+  </div>
+  <div class="meta">
+    <span class="pill">6 courts</span>
+    <span class="pill">24 players</span>
+    <span class="pill" id="round">Round 1</span>
+  </div>
+</header>
+
+<main class="courts" id="courts"></main>
+
+<footer>Tap any slot to enter a player’s name.</footer>
+
+<script>
+  const courts = document.getElementById('courts');
+  const slots = [
+    ['tl', 'left'],  ['bl', 'left'],
+    ['tr', 'right'], ['br', 'right']
+  ];
+
+  for (let i = 1; i <= 6; i++) {
+    const card = document.createElement('section');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="court-name">Court ${i}</span>
+        <span class="court-no">Doubles</span>
+      </div>
+      <div class="side-label">Team A</div>
+      <div class="court">
+        <div class="zone svc tl"><input class="player" type="text" placeholder="Player 1" aria-label="Court ${i}, top side, player 1"></div>
+        <div class="zone svc tr"><input class="player" type="text" placeholder="Player 2" aria-label="Court ${i}, top side, player 2"></div>
+        <div class="zone kitchen near"></div>
+        <div class="zone kitchen far"></div>
+        <div class="zone svc bl"><input class="player" type="text" placeholder="Player 3" aria-label="Court ${i}, bottom side, player 1"></div>
+        <div class="zone svc br"><input class="player" type="text" placeholder="Player 4" aria-label="Court ${i}, bottom side, player 2"></div>
+        <div class="net"></div>
+      </div>
+      <div class="side-label">Team B</div>
+    `;
+    courts.appendChild(card);
+  }
+</script>
+
+</body>
+</html>
