@@ -132,12 +132,14 @@
   }
   .button:disabled { cursor: not-allowed; opacity: .45; filter: none; }
   .status { color: var(--ink-dim); font-size: 14px; }
+  .status:empty { display: none; }
+  .controls:has(.status:only-child:empty) { display: none; }
   .status.error { color: #ff9d9d; }
   .round-navigation {
     max-width: 1500px;
     margin: calc(-1 * clamp(12px, 1.5vw, 20px)) auto clamp(22px, 3vw, 34px);
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     gap: 10px;
   }
@@ -146,6 +148,36 @@
     color: var(--ink-dim);
     font-size: 14px;
     text-align: center;
+  }
+  #previous-round {
+    justify-self: start;
+    color: #fff;
+  }
+  #next-round {
+    justify-self: end;
+    color: #fff;
+  }
+  #shuffle {
+    width: 140px;
+    grid-column: 1;
+    justify-self: start;
+    color: var(--bg-0);
+    background: #58d39b;
+    border-color: #58d39b;
+  }
+  #complete-round {
+    width: 140px;
+    grid-column: 3;
+    justify-self: end;
+    color: var(--bg-0);
+    background: #ff7272;
+    border-color: #ff7272;
+  }
+  @media (max-width: 600px) {
+    .round-navigation .button { padding-inline: 8px; font-size: 12px; }
+    .round-position { min-width: 0; }
+    .round-state { display: block; margin-top: 4px; }
+    #shuffle, #complete-round { padding-inline: 16px; font-size: 14px; }
   }
 
   .roster-panel {
@@ -350,14 +382,14 @@
 </header>
 
 <section class="controls" aria-label="Roster controls">
-  <button class="button secondary" id="shuffle" type="button" disabled>Shuffle again</button>
   <span class="status" id="status" role="status" aria-live="polite">Loading the demo roster…</span>
 </section>
 
 <nav class="round-navigation" aria-label="Round history">
   <button class="button secondary" id="previous-round" type="button" disabled>← Previous round</button>
-  <span class="round-position" id="round-position">Round 1 (Current)</span>
+  <span class="round-position" id="round-position">Round 1 <span class="round-state">(Current)</span></span>
   <button class="button secondary" id="next-round" type="button" disabled>Next round →</button>
+  <button class="button" id="shuffle" type="button" disabled>Shuffle</button>
   <button class="button" id="complete-round" type="button" disabled>Complete round</button>
 </nav>
 
@@ -507,7 +539,10 @@
     nextRoundButton.disabled = viewedRound === completedRounds.length;
     playerInputs.forEach(input => { input.readOnly = !active; });
     roundLabel.textContent = `Round ${viewedRound + 1}`;
-    roundPosition.textContent = `Round ${viewedRound + 1} (${active ? 'Current' : 'Completed'})`;
+    const roundState = document.createElement('span');
+    roundState.className = 'round-state';
+    roundState.textContent = `(${active ? 'Current' : 'Completed'})`;
+    roundPosition.replaceChildren(document.createTextNode(`Round ${viewedRound + 1} `), roundState);
   }
 
   function updateStatus(message = 'assigned') {
@@ -517,7 +552,7 @@
     status.className = 'status';
     status.textContent = overflow
       ? `${assigned} players ${message}; ${overflow} could not fit on six courts.`
-      : `${assigned} player${assigned === 1 ? '' : 's'} ${message} across six courts.`;
+      : '';
     updateRosterSummary(false);
     syncControls();
   }
@@ -533,7 +568,7 @@
     playerCount.textContent = `${assigned} / ${CAPACITY} players`;
     status.className = 'status';
     status.textContent = active
-      ? `${assigned} player${assigned === 1 ? '' : 's'} assigned across six courts.`
+      ? ''
       : `Round ${viewedRound + 1} completed with ${assigned} player${assigned === 1 ? '' : 's'}.`;
     syncControls();
   }
