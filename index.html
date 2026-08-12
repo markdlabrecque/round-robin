@@ -49,6 +49,21 @@
     padding-bottom: 20px;
     border-bottom: 1px solid var(--stroke);
   }
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: clamp(14px, 2vw, 26px);
+    min-width: 0;
+  }
+  .header-logo {
+    width: clamp(88px, 10vw, 138px);
+    height: auto;
+    flex: 0 0 auto;
+  }
+  @media (max-width: 600px) {
+    .header-brand { align-items: flex-start; }
+    .header-logo { width: 76px; }
+  }
   .eyebrow {
     font-size: 12px;
     letter-spacing: .22em;
@@ -322,9 +337,12 @@
 <body>
 
 <header>
-  <div>
-    <p class="eyebrow">North Shore Pickleball Club</p>
-    <h1>North Shore Pickleball Club <span class="sep">—</span> <span class="rr">Round Robin</span></h1>
+  <div class="header-brand">
+    <img class="header-logo" src="assets/nspc-logo.png" alt="North Shore Pickleball Club">
+    <div>
+      <p class="eyebrow">North Shore Pickleball Club</p>
+      <h1>North Shore Pickleball Club <span class="sep">—</span> <span class="rr">Round Robin</span></h1>
+    </div>
   </div>
   <div class="meta">
     <span class="pill">6 courts</span>
