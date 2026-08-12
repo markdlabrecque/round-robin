@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>North Shore Pickleball Club — Round Robin</title>
+<style>
+  :root {
+    --bg-0: #0b1220;
+    --bg-1: #101a2e;
+    --ink: #eef4ff;
+    --ink-dim: #93a4c4;
+    --line: rgba(255,255,255,.92);
+    --court-in: #1f6f5c;   /* kitchen / non-volley zone */
+    --court-out: #1f4f8f;  /* service boxes */
+    --accent: #ffd166;
+    --card: rgba(255,255,255,.05);
+    --stroke: rgba(255,255,255,.12);
+    --shadow: 0 18px 40px -18px rgba(0,0,0,.75);
+    --r: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: clamp(20px, 3vw, 44px) clamp(16px, 3vw, 40px) 56px;
+    background:
+      radial-gradient(1100px 600px at 12% -10%, #1b3358 0%, transparent 60%),
+      radial-gradient(900px 520px at 100% 0%, #14503f 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    background-repeat: no-repeat;
+    background-color: var(--bg-0);
+    color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    max-width: 1500px;
+    margin: 0 auto clamp(22px, 3vw, 40px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 18px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--stroke);
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(26px, 4.2vw, 52px);
+    line-height: 1.04;
+    font-weight: 800;
+    letter-spacing: -.025em;
+  }
+  h1 .sep { color: var(--ink-dim); font-weight: 300; }
+  h1 .rr {
+    background: linear-gradient(92deg, var(--accent), #7ee0b8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    color: var(--ink-dim);
+    font-size: 14px;
+  }
+  .pill {
+    padding: 8px 14px;
+    border: 1px solid var(--stroke);
+    border-radius: 999px;
+    background: var(--card);
+    white-space: nowrap;
+  }
+
+  /* ---------- Roster controls ---------- */
+  .controls {
+    max-width: 1500px;
+    margin: 0 auto clamp(22px, 3vw, 34px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .button {
+    appearance: none;
+    cursor: pointer;
+    padding: 10px 16px;
+    color: var(--bg-0);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 9px;
+    font: 700 14px/1 inherit;
+  }
+  .button:hover { filter: brightness(1.08); }
+  .button:focus-visible {
+    outline: 3px solid rgba(255,209,102,.35);
+    outline-offset: 2px;
+  }
+  .button.secondary {
+    color: var(--ink);
+    background: var(--card);
+    border-color: var(--stroke);
+  }
+  .button:disabled { cursor: not-allowed; opacity: .45; filter: none; }
+  #roster-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  .status { color: var(--ink-dim); font-size: 14px; }
+  .status.error { color: #ff9d9d; }
+
+  .roster-panel {
+    max-width: 1500px;
+    margin: calc(-1 * clamp(12px, 1.5vw, 20px)) auto clamp(22px, 3vw, 34px);
+    border: 1px solid var(--stroke);
+    border-radius: 10px;
+    background: var(--card);
+  }
+  .roster-panel[hidden] { display: none; }
+  .roster-panel summary {
+    cursor: pointer;
+    padding: 12px 16px;
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .roster-panel summary::marker { color: var(--accent); }
+  .roster-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 16px 12px;
+  }
+  .registrant-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 8px 18px;
+    padding: 0 16px 16px;
+  }
+  .registrant {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    color: var(--ink-dim);
+    font-size: 14px;
+  }
+  .registrant input {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 auto;
+    accent-color: var(--accent);
+  }
+  .registrant span { overflow-wrap: anywhere; }
+
+  /* ---------- Court grid: 3 across, 2 down ---------- */
+  .courts {
+    max-width: 1500px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(18px, 2.2vw, 34px);
+  }
+  @media (max-width: 1080px) { .courts { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 720px)  { .courts { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--stroke);
+    border-radius: var(--r);
+    padding: 14px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(6px);
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 2px 4px 12px;
+  }
+  .court-name { font-size: 16px; font-weight: 700; letter-spacing: .01em; }
+  .court-no {
+    font-size: 11px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  /* ---------- The court ---------- */
+  .court {
+    position: relative;
+    aspect-ratio: 20 / 34;              /* portrait court, slightly foreshortened to fit */
+    max-width: 340px;
+    margin-inline: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 15fr 7fr 7fr 15fr;     /* service / kitchen / kitchen / service */
+    border: 3px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--court-out);
+    box-shadow: inset 0 0 60px rgba(0,0,0,.35);
+  }
+  .zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 8px;
+    min-width: 0;
+  }
+  .svc.tl, .svc.tr { align-items: flex-start; }
+  .svc.bl, .svc.br { align-items: flex-end; }
+  .svc { border: 0 solid var(--line); }
+  .svc.tl { grid-area: 1 / 1; border-width: 0 2px 2px 0; }   /* top-left */
+  .svc.tr { grid-area: 1 / 2; border-width: 0 0 2px 0; }     /* top-right */
+  .svc.bl { grid-area: 4 / 1; border-width: 2px 2px 0 0; }   /* bottom-left */
+  .svc.br { grid-area: 4 / 2; border-width: 2px 0 0 0; }     /* bottom-right */
+
+  .kitchen { background: var(--court-in); }
+  .kitchen.near { grid-area: 2 / 1 / 3 / 3; }
+  .kitchen.far  { grid-area: 3 / 1 / 4 / 3; }
+
+  /* Net */
+  .net {
+    position: absolute;
+    inset: 0 -4% 0 -4%;
+    top: 50%;
+    height: 6px;
+    transform: translateY(-50%);
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.85) 0 3px, rgba(255,255,255,.25) 3px 6px);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 0 22px rgba(0,0,0,.5);
+    border-radius: 3px;
+    pointer-events: none;
+  }
+  .net::before, .net::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px; height: 12px;
+    background: var(--ink);
+    border-radius: 50%;
+  }
+  .net::before { left: -6px; }
+  .net::after  { right: -6px; }
+
+  /* ---------- Player name slots ---------- */
+  .player {
+    width: 100%;
+    max-width: 100%;
+    text-align: center;
+    font: 600 clamp(11px, 1.05vw, 15px)/1.25 inherit;
+    color: #fff;
+    background: rgba(8,14,26,.42);
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 8px;
+    padding: 8px 6px;
+    outline: none;
+    text-overflow: ellipsis;
+    transition: background .15s, border-color .15s, box-shadow .15s;
+  }
+  .player::placeholder { color: rgba(255,255,255,.5); font-weight: 500; }
+  .player:hover { background: rgba(8,14,26,.55); }
+  .player:focus {
+    background: rgba(8,14,26,.75);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255,209,102,.25);
+  }
+
+  /* Side labels above and below the court */
+  .side-label {
+    text-align: center;
+    margin: 8px 4px;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  footer {
+    max-width: 1500px;
+    margin: clamp(28px, 4vw, 48px) auto 0;
+    color: var(--ink-dim);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  @media print {
+    body { background: #fff; color: #000; padding: 12mm; }
+    .card { box-shadow: none; background: #fff; border-color: #999; }
+    .courts { gap: 8mm; }
+    .eyebrow, .rr { color: #000 !important; -webkit-text-fill-color: #000; }
+    .meta, .controls, .roster-panel, footer { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <p class="eyebrow">North Shore Pickleball Club</p>
+    <h1>North Shore Pickleball Club <span class="sep">—</span> <span class="rr">Round Robin</span></h1>
+  </div>
+  <div class="meta">
+    <span class="pill">6 courts</span>
+    <span class="pill" id="player-count">0 / 24 players</span>
+    <span class="pill" id="round">Round 1</span>
+  </div>
+</header>
+
+<section class="controls" aria-label="Roster controls">
+  <label class="button" for="roster-file">Import roster JSON</label>
+  <input id="roster-file" type="file" accept="application/json,.json">
+  <button class="button secondary" id="shuffle" type="button" disabled>Shuffle again</button>
+  <button class="button secondary" id="clear" type="button" disabled>Clear</button>
+  <span class="status" id="status" role="status" aria-live="polite">Loading the demo roster…</span>
+</section>
+
+<details class="roster-panel" id="roster-panel" hidden>
+  <summary id="roster-summary">Players</summary>
+  <div class="roster-toolbar">
+    <button class="button secondary" id="add-player" type="button">Add Player</button>
+  </div>
+  <div class="registrant-list" id="registrant-list"></div>
+</details>
+
+<main class="courts" id="courts"></main>
+
+<footer>Import a JSON roster, shuffle again, or edit any player slot manually. Court assignments are saved only in this browser.</footer>
+
+<script>
+  const COURT_COUNT = 6;
+  const CAPACITY = COURT_COUNT * 4;
+  const STORAGE_KEY = 'roundRobinAssignment:v1';
+  const courts = document.getElementById('courts');
+  const rosterFile = document.getElementById('roster-file');
+  const shuffleButton = document.getElementById('shuffle');
+  const clearButton = document.getElementById('clear');
+  const status = document.getElementById('status');
+  const playerCount = document.getElementById('player-count');
+  const rosterPanel = document.getElementById('roster-panel');
+  const rosterSummary = document.getElementById('roster-summary');
+  const registrantList = document.getElementById('registrant-list');
+  const addPlayerButton = document.getElementById('add-player');
+  let roster = [];
+
+  for (let i = 1; i <= COURT_COUNT; i++) {
+    const card = document.createElement('section');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="court-name">Court ${i}</span>
+        <span class="court-no">Doubles</span>
+      </div>
+      <div class="side-label">Team A</div>
+      <div class="court">
+        <div class="zone svc tl"><input class="player" type="text" placeholder="Player 1" aria-label="Court ${i}, top side, player 1"></div>
+        <div class="zone svc tr"><input class="player" type="text" placeholder="Player 2" aria-label="Court ${i}, top side, player 2"></div>
+        <div class="zone kitchen near"></div>
+        <div class="zone kitchen far"></div>
+        <div class="zone svc bl"><input class="player" type="text" placeholder="Player 3" aria-label="Court ${i}, bottom side, player 1"></div>
+        <div class="zone svc br"><input class="player" type="text" placeholder="Player 4" aria-label="Court ${i}, bottom side, player 2"></div>
+        <div class="net"></div>
+      </div>
+      <div class="side-label">Team B</div>
+    `;
+    courts.appendChild(card);
+  }
+
+  const playerInputs = [...document.querySelectorAll('.player')];
+
+  function randomIndex(maxExclusive) {
+    if (!window.crypto?.getRandomValues) return Math.floor(Math.random() * maxExclusive);
+    const range = 0x100000000;
+    const limit = range - (range % maxExclusive);
+    const value = new Uint32Array(1);
+    do window.crypto.getRandomValues(value); while (value[0] >= limit);
+    return value[0] % maxExclusive;
+  }
+
+  function shuffled(items) {
+    const result = [...items];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = randomIndex(i + 1);
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
+
+  let scriptRoster = [];
+  let scriptRosterKey = '';
+
+  function selectedRoster() {
+    return [...registrantList.querySelectorAll('input:checked')].map(input => input.value);
+  }
+
+  function updateRosterSummary() {
+    const playing = selectedRoster().length;
+    rosterSummary.textContent = `Players (${roster.length}) — ${playing} playing`;
+  }
+
+  function renderRosterChecklist(selectedNames = roster) {
+    const selected = new Set(selectedNames);
+    registrantList.replaceChildren();
+    for (const name of roster) {
+      const label = document.createElement('label');
+      label.className = 'registrant';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = name;
+      checkbox.checked = selected.has(name);
+      checkbox.setAttribute('aria-label', `${name} is playing`);
+      const text = document.createElement('span');
+      text.textContent = name;
+      label.append(checkbox, text);
+      registrantList.appendChild(label);
+    }
+    rosterPanel.hidden = roster.length === 0;
+    updateRosterSummary();
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        scriptRosterKey,
+        roster,
+        activeRoster: selectedRoster(),
+        slots: playerInputs.map(input => input.value),
+      }));
+    } catch (error) {
+      console.warn('Court assignments could not be saved:', error);
+    }
+  }
+
+  function readState() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY));
+    } catch {
+      return null;
+    }
+  }
+
+  function updateStatus(message = 'assigned') {
+    const assigned = playerInputs.filter(input => input.value.trim()).length;
+    const overflow = Math.max(0, selectedRoster().length - CAPACITY);
+    playerCount.textContent = `${assigned} / ${CAPACITY} players`;
+    status.className = 'status';
+    status.textContent = overflow
+      ? `${assigned} players ${message}; ${overflow} could not fit on six courts.`
+      : `${assigned} player${assigned === 1 ? '' : 's'} ${message} across six courts.`;
+    updateRosterSummary();
+  }
+
+  function assignRoster() {
+    const activeRoster = selectedRoster();
+    const players = shuffled(activeRoster).slice(0, CAPACITY);
+    playerInputs.forEach((input, index) => { input.value = players[index] ?? ''; });
+    shuffleButton.disabled = activeRoster.length === 0;
+    updateStatus();
+    saveState();
+  }
+
+  function parseRoster(data) {
+    if (!data || !Array.isArray(data.registrants)) {
+      throw new Error('Expected a JSON object with a “registrants” array.');
+    }
+    const unique = new Map();
+    for (const item of data.registrants) {
+      if (!item || typeof item.name !== 'string') {
+        throw new Error('Each registrant must have a name string.');
+      }
+      const name = item.name.trim();
+      if (!name) throw new Error('Registrant names cannot be empty.');
+      const key = name.toLocaleLowerCase();
+      if (!unique.has(key)) unique.set(key, name);
+    }
+    return [...unique.values()];
+  }
+
+  rosterFile.addEventListener('change', async () => {
+    const file = rosterFile.files[0];
+    if (!file) return;
+    status.className = 'status';
+    status.textContent = `Reading roster from ${file.name}…`;
+    rosterFile.disabled = true;
+    try {
+      roster = parseRoster(JSON.parse(await file.text()));
+      if (!roster.length) throw new Error('The roster is empty.');
+      scriptRosterKey = JSON.stringify(roster);
+      renderRosterChecklist();
+      shuffleButton.disabled = false;
+      clearButton.disabled = false;
+      assignRoster();
+    } catch (error) {
+      status.className = 'status error';
+      status.textContent = `Could not import ${file.name}: ${error.message}`;
+    } finally {
+      rosterFile.disabled = false;
+      rosterFile.value = '';
+    }
+  });
+
+  shuffleButton.addEventListener('click', assignRoster);
+  registrantList.addEventListener('change', event => {
+    if (event.target.matches('input[type="checkbox"]')) assignRoster();
+  });
+  addPlayerButton.addEventListener('click', () => {
+    const name = window.prompt('Player name:')?.trim();
+    if (!name) return;
+    if (roster.some(player => player.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      status.className = 'status error';
+      status.textContent = `${name} is already in the player list.`;
+      return;
+    }
+    const activeRoster = selectedRoster();
+    roster.push(name);
+    renderRosterChecklist([...activeRoster, name]);
+    assignRoster();
+  });
+  clearButton.addEventListener('click', () => {
+    roster = [];
+    renderRosterChecklist([]);
+    playerInputs.forEach(input => { input.value = ''; });
+    playerCount.textContent = `0 / ${CAPACITY} players`;
+    status.className = 'status';
+    status.textContent = 'Roster cleared. Import a roster JSON file to begin.';
+    shuffleButton.disabled = true;
+    clearButton.disabled = true;
+    saveState();
+  });
+
+  playerInputs.forEach(input => input.addEventListener('change', () => {
+    updateStatus('saved');
+    saveState();
+  }));
+
+  async function initializeDemo() {
+    try {
+      const response = await fetch('./registrants.json', { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Could not load demo roster (${response.status}).`);
+      scriptRoster = parseRoster(await response.json());
+      scriptRosterKey = JSON.stringify(scriptRoster);
+
+      const savedState = readState();
+      if (
+        savedState &&
+        savedState.scriptRosterKey === scriptRosterKey &&
+        Array.isArray(savedState.roster) &&
+        Array.isArray(savedState.slots) &&
+        savedState.slots.length === CAPACITY
+      ) {
+        roster = savedState.roster;
+        const activeRoster = Array.isArray(savedState.activeRoster) ? savedState.activeRoster : roster;
+        renderRosterChecklist(activeRoster);
+        playerInputs.forEach((input, index) => { input.value = savedState.slots[index] ?? ''; });
+        shuffleButton.disabled = activeRoster.length === 0;
+        clearButton.disabled = roster.length === 0;
+        if (roster.length) updateStatus('restored');
+      } else {
+        roster = scriptRoster;
+        renderRosterChecklist();
+        shuffleButton.disabled = false;
+        clearButton.disabled = false;
+        assignRoster();
+      }
+    } catch (error) {
+      status.className = 'status error';
+      status.textContent = `Could not start the demo: ${error.message}`;
+    }
+  }
+
+  initializeDemo();
+</script>
+
+</body>
+</html>
