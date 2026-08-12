@@ -322,7 +322,6 @@
   <label class="button" for="roster-file">Import roster JSON</label>
   <input id="roster-file" type="file" accept="application/json,.json">
   <button class="button secondary" id="shuffle" type="button" disabled>Shuffle again</button>
-  <button class="button secondary" id="clear" type="button" disabled>Clear</button>
   <span class="status" id="status" role="status" aria-live="polite">Loading the demo roster…</span>
 </section>
 
@@ -341,11 +340,10 @@
 <script>
   const COURT_COUNT = 6;
   const CAPACITY = COURT_COUNT * 4;
-  const STORAGE_KEY = 'roundRobinAssignment:v1';
+  const STORAGE_KEY = 'roundRobinAssignment:v2';
   const courts = document.getElementById('courts');
   const rosterFile = document.getElementById('roster-file');
   const shuffleButton = document.getElementById('shuffle');
-  const clearButton = document.getElementById('clear');
   const status = document.getElementById('status');
   const playerCount = document.getElementById('player-count');
   const rosterPanel = document.getElementById('roster-panel');
@@ -499,7 +497,6 @@
       scriptRosterKey = JSON.stringify(roster);
       renderRosterChecklist();
       shuffleButton.disabled = false;
-      clearButton.disabled = false;
       assignRoster();
     } catch (error) {
       status.className = 'status error';
@@ -527,18 +524,6 @@
     renderRosterChecklist([...activeRoster, name]);
     assignRoster();
   });
-  clearButton.addEventListener('click', () => {
-    roster = [];
-    renderRosterChecklist([]);
-    playerInputs.forEach(input => { input.value = ''; });
-    playerCount.textContent = `0 / ${CAPACITY} players`;
-    status.className = 'status';
-    status.textContent = 'Roster cleared. Import a roster JSON file to begin.';
-    shuffleButton.disabled = true;
-    clearButton.disabled = true;
-    saveState();
-  });
-
   playerInputs.forEach(input => input.addEventListener('change', () => {
     updateStatus('saved');
     saveState();
@@ -546,7 +531,7 @@
 
   async function initializeDemo() {
     try {
-      const response = await fetch('./registrants.json', { cache: 'no-store' });
+      const response = await fetch('./registrants.json?v=2', { cache: 'no-store' });
       if (!response.ok) throw new Error(`Could not load demo roster (${response.status}).`);
       scriptRoster = parseRoster(await response.json());
       scriptRosterKey = JSON.stringify(scriptRoster);
@@ -564,13 +549,11 @@
         renderRosterChecklist(activeRoster);
         playerInputs.forEach((input, index) => { input.value = savedState.slots[index] ?? ''; });
         shuffleButton.disabled = activeRoster.length === 0;
-        clearButton.disabled = roster.length === 0;
         if (roster.length) updateStatus('restored');
       } else {
         roster = scriptRoster;
         renderRosterChecklist();
         shuffleButton.disabled = false;
-        clearButton.disabled = false;
         assignRoster();
       }
     } catch (error) {
