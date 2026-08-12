@@ -118,6 +118,20 @@
   .button:disabled { cursor: not-allowed; opacity: .45; filter: none; }
   .status { color: var(--ink-dim); font-size: 14px; }
   .status.error { color: #ff9d9d; }
+  .round-navigation {
+    max-width: 1500px;
+    margin: calc(-1 * clamp(12px, 1.5vw, 20px)) auto clamp(22px, 3vw, 34px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .round-position {
+    min-width: 160px;
+    color: var(--ink-dim);
+    font-size: 14px;
+    text-align: center;
+  }
 
   .roster-panel {
     max-width: 1500px;
@@ -299,7 +313,7 @@
     .card { box-shadow: none; background: #fff; border-color: #999; }
     .courts { gap: 8mm; }
     .eyebrow, .rr { color: #000 !important; -webkit-text-fill-color: #000; }
-    .meta, .controls, .roster-panel, footer { display: none; }
+    .meta, .controls, .round-navigation, .roster-panel, footer { display: none; }
   }
 </style>
 </head>
@@ -322,6 +336,13 @@
   <span class="status" id="status" role="status" aria-live="polite">Loading the demo roster…</span>
 </section>
 
+<nav class="round-navigation" aria-label="Round history">
+  <button class="button secondary" id="previous-round" type="button" disabled>← Previous round</button>
+  <span class="round-position" id="round-position">Round 1 (Current)</span>
+  <button class="button secondary" id="next-round" type="button" disabled>Next round →</button>
+  <button class="button" id="complete-round" type="button" disabled>Complete round</button>
+</nav>
+
 <details class="roster-panel" id="roster-panel" hidden>
   <summary id="roster-summary">Players</summary>
   <div class="roster-toolbar">
@@ -334,12 +355,18 @@
 
 <footer>Shuffle again or edit any player slot manually. Court assignments are saved only in this browser.</footer>
 
+<script src="round_scheduler.js"></script>
 <script>
   const COURT_COUNT = 6;
   const CAPACITY = COURT_COUNT * 4;
   const STORAGE_KEY = 'roundRobinAssignment:v2';
   const courts = document.getElementById('courts');
   const shuffleButton = document.getElementById('shuffle');
+  const completeRoundButton = document.getElementById('complete-round');
+  const previousRoundButton = document.getElementById('previous-round');
+  const nextRoundButton = document.getElementById('next-round');
+  const roundLabel = document.getElementById('round');
+  const roundPosition = document.getElementById('round-position');
   const status = document.getElementById('status');
   const playerCount = document.getElementById('player-count');
   const rosterPanel = document.getElementById('roster-panel');
@@ -347,6 +374,11 @@
   const registrantList = document.getElementById('registrant-list');
   const addPlayerButton = document.getElementById('add-player');
   let roster = [];
+  let activeRoster = [];
+  let activeSlots = Array(CAPACITY).fill('');
+  let completedRounds = [];
+  let viewedRound = 0;
+  let completingRound = false;
 
   for (let i = 1; i <= COURT_COUNT; i++) {
     const card = document.createElement('section');
@@ -382,45 +414,47 @@
     return value[0] % maxExclusive;
   }
 
-  function shuffled(items) {
-    const result = [...items];
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = randomIndex(i + 1);
-      [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
-  }
-
   let scriptRoster = [];
   let scriptRosterKey = '';
+
+  function isViewingActiveRound() {
+    return viewedRound === completedRounds.length;
+  }
 
   function selectedRoster() {
     return [...registrantList.querySelectorAll('input:checked')].map(input => input.value);
   }
 
-  function updateRosterSummary() {
-    const playing = selectedRoster().length;
-    rosterSummary.textContent = `Players (${roster.length}) — ${playing} playing`;
+  function captureActiveRound() {
+    if (!isViewingActiveRound()) return;
+    activeRoster = selectedRoster();
+    activeSlots = playerInputs.map(input => input.value);
   }
 
-  function renderRosterChecklist(selectedNames = roster) {
+  function updateRosterSummary(locked = !isViewingActiveRound()) {
+    const playing = selectedRoster().length;
+    rosterSummary.textContent = `Players (${roster.length}) — ${playing} playing${locked ? ' — locked' : ''}`;
+  }
+
+  function renderRosterChecklist(selectedNames = roster, rosterNames = roster, locked = false) {
     const selected = new Set(selectedNames);
     registrantList.replaceChildren();
-    for (const name of roster) {
+    for (const name of rosterNames) {
       const label = document.createElement('label');
       label.className = 'registrant';
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.value = name;
       checkbox.checked = selected.has(name);
+      checkbox.disabled = locked;
       checkbox.setAttribute('aria-label', `${name} is playing`);
       const text = document.createElement('span');
       text.textContent = name;
       label.append(checkbox, text);
       registrantList.appendChild(label);
     }
-    rosterPanel.hidden = roster.length === 0;
-    updateRosterSummary();
+    rosterPanel.hidden = rosterNames.length === 0;
+    updateRosterSummary(locked);
   }
 
   function saveState() {
@@ -428,8 +462,9 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         scriptRosterKey,
         roster,
-        activeRoster: selectedRoster(),
-        slots: playerInputs.map(input => input.value),
+        activeRoster,
+        slots: activeSlots,
+        completedRounds,
       }));
     } catch (error) {
       console.warn('Court assignments could not be saved:', error);
@@ -444,6 +479,19 @@
     }
   }
 
+  function syncControls() {
+    const active = isViewingActiveRound();
+    const hasPlayers = activeRoster.length > 0;
+    shuffleButton.disabled = !active || !hasPlayers;
+    addPlayerButton.disabled = !active;
+    completeRoundButton.disabled = !active || !hasPlayers || completingRound;
+    previousRoundButton.disabled = viewedRound === 0;
+    nextRoundButton.disabled = viewedRound === completedRounds.length;
+    playerInputs.forEach(input => { input.readOnly = !active; });
+    roundLabel.textContent = `Round ${viewedRound + 1}`;
+    roundPosition.textContent = `Round ${viewedRound + 1} (${active ? 'Current' : 'Completed'})`;
+  }
+
   function updateStatus(message = 'assigned') {
     const assigned = playerInputs.filter(input => input.value.trim()).length;
     const overflow = Math.max(0, selectedRoster().length - CAPACITY);
@@ -452,15 +500,39 @@
     status.textContent = overflow
       ? `${assigned} players ${message}; ${overflow} could not fit on six courts.`
       : `${assigned} player${assigned === 1 ? '' : 's'} ${message} across six courts.`;
-    updateRosterSummary();
+    updateRosterSummary(false);
+    syncControls();
+  }
+
+  function renderRound() {
+    const active = isViewingActiveRound();
+    const round = active
+      ? { roster, activeRoster, slots: activeSlots }
+      : completedRounds[viewedRound];
+    renderRosterChecklist(round.activeRoster, round.roster, !active);
+    playerInputs.forEach((input, index) => { input.value = round.slots[index] ?? ''; });
+    const assigned = round.slots.filter(name => name.trim()).length;
+    playerCount.textContent = `${assigned} / ${CAPACITY} players`;
+    status.className = 'status';
+    status.textContent = active
+      ? `${assigned} player${assigned === 1 ? '' : 's'} assigned across six courts.`
+      : `Round ${viewedRound + 1} completed with ${assigned} player${assigned === 1 ? '' : 's'}.`;
+    syncControls();
   }
 
   function assignRoster() {
-    const activeRoster = selectedRoster();
-    const players = shuffled(activeRoster).slice(0, CAPACITY);
-    playerInputs.forEach((input, index) => { input.value = players[index] ?? ''; });
-    shuffleButton.disabled = activeRoster.length === 0;
+    if (!isViewingActiveRound()) return;
+    activeRoster = selectedRoster();
+    const assignment = RoundRobinScheduler.scheduleRound(activeRoster, completedRounds, {
+      capacity: CAPACITY,
+      randomIndex,
+    });
+    playerInputs.forEach((input, index) => { input.value = assignment.slots[index] ?? ''; });
+    activeSlots = playerInputs.map(input => input.value);
     updateStatus();
+    if (assignment.partnerRepeats) {
+      status.textContent += ` ${assignment.partnerRepeats} repeat partnership${assignment.partnerRepeats === 1 ? '' : 's'} could not be avoided.`;
+    }
     saveState();
   }
 
@@ -483,7 +555,7 @@
 
   shuffleButton.addEventListener('click', assignRoster);
   registrantList.addEventListener('change', event => {
-    if (event.target.matches('input[type="checkbox"]')) assignRoster();
+    if (isViewingActiveRound() && event.target.matches('input[type="checkbox"]')) assignRoster();
   });
   addPlayerButton.addEventListener('click', () => {
     const name = window.prompt('Player name:')?.trim();
@@ -493,15 +565,66 @@
       status.textContent = `${name} is already in the player list.`;
       return;
     }
-    const activeRoster = selectedRoster();
+    const selectedPlayers = selectedRoster();
     roster.push(name);
-    renderRosterChecklist([...activeRoster, name]);
+    activeRoster = [...selectedPlayers, name];
+    renderRosterChecklist(activeRoster);
     assignRoster();
   });
-  playerInputs.forEach(input => input.addEventListener('change', () => {
-    updateStatus('saved');
+
+  completeRoundButton.addEventListener('click', () => {
+    if (!isViewingActiveRound() || !activeRoster.length || completingRound) return;
+    completingRound = true;
+    syncControls();
+    captureActiveRound();
+    completedRounds.push({
+      roster: [...roster],
+      activeRoster: [...activeRoster],
+      slots: [...activeSlots],
+    });
+    viewedRound = completedRounds.length;
+    activeSlots = Array(CAPACITY).fill('');
+    renderRound();
+    assignRoster();
+    window.setTimeout(() => {
+      completingRound = false;
+      syncControls();
+    }, 500);
+  });
+
+  previousRoundButton.addEventListener('click', () => {
+    if (viewedRound === 0) return;
+    captureActiveRound();
+    viewedRound -= 1;
+    renderRound();
     saveState();
-  }));
+  });
+
+  nextRoundButton.addEventListener('click', () => {
+    if (viewedRound >= completedRounds.length) return;
+    viewedRound += 1;
+    renderRound();
+  });
+
+  playerInputs.forEach(input => {
+    input.addEventListener('input', () => {
+      if (!isViewingActiveRound()) return;
+      activeSlots = playerInputs.map(playerInput => playerInput.value);
+      saveState();
+    });
+    input.addEventListener('change', () => {
+      if (!isViewingActiveRound()) return;
+      activeSlots = playerInputs.map(playerInput => playerInput.value);
+      updateStatus('saved');
+      saveState();
+    });
+  });
+
+  function isStringArray(value, expectedLength = null) {
+    return Array.isArray(value) &&
+      (expectedLength === null || value.length === expectedLength) &&
+      value.every(item => typeof item === 'string');
+  }
 
   async function initializeDemo() {
     try {
@@ -514,20 +637,29 @@
       if (
         savedState &&
         savedState.scriptRosterKey === scriptRosterKey &&
-        Array.isArray(savedState.roster) &&
-        Array.isArray(savedState.slots) &&
-        savedState.slots.length === CAPACITY
+        isStringArray(savedState.roster) &&
+        isStringArray(savedState.slots, CAPACITY)
       ) {
         roster = savedState.roster;
-        const activeRoster = Array.isArray(savedState.activeRoster) ? savedState.activeRoster : roster;
-        renderRosterChecklist(activeRoster);
-        playerInputs.forEach((input, index) => { input.value = savedState.slots[index] ?? ''; });
-        shuffleButton.disabled = activeRoster.length === 0;
+        activeRoster = isStringArray(savedState.activeRoster) ? savedState.activeRoster : roster;
+        activeSlots = savedState.slots;
+        completedRounds = Array.isArray(savedState.completedRounds)
+          ? savedState.completedRounds.filter(round =>
+              round &&
+              isStringArray(round.roster) &&
+              isStringArray(round.activeRoster) &&
+              isStringArray(round.slots, CAPACITY)
+            )
+          : [];
+        viewedRound = completedRounds.length;
+        renderRound();
         if (roster.length) updateStatus('restored');
       } else {
         roster = scriptRoster;
-        renderRosterChecklist();
-        shuffleButton.disabled = false;
+        activeRoster = [...roster];
+        activeSlots = Array(CAPACITY).fill('');
+        viewedRound = 0;
+        renderRound();
         assignRoster();
       }
     } catch (error) {

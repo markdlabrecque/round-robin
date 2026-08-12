@@ -86,6 +86,97 @@
     white-space: nowrap;
   }
 
+  /* ---------- Roster controls ---------- */
+  .controls {
+    max-width: 1500px;
+    margin: 0 auto clamp(22px, 3vw, 34px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .button {
+    appearance: none;
+    cursor: pointer;
+    padding: 10px 16px;
+    color: var(--bg-0);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 9px;
+    font: 700 14px/1 inherit;
+  }
+  .button:hover { filter: brightness(1.08); }
+  .button:focus-visible {
+    outline: 3px solid rgba(255,209,102,.35);
+    outline-offset: 2px;
+  }
+  .button.secondary {
+    color: var(--ink);
+    background: var(--card);
+    border-color: var(--stroke);
+  }
+  .button:disabled, .button.disabled { cursor: not-allowed; opacity: .45; filter: none; }
+  .button.disabled { pointer-events: none; }
+  #roster-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  .status { color: var(--ink-dim); font-size: 14px; }
+  .status.error { color: #ff9d9d; }
+  .round-navigation {
+    max-width: 1500px;
+    margin: calc(-1 * clamp(12px, 1.5vw, 20px)) auto clamp(22px, 3vw, 34px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .round-position {
+    min-width: 120px;
+    color: var(--ink-dim);
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .roster-panel {
+    max-width: 1500px;
+    margin: calc(-1 * clamp(12px, 1.5vw, 20px)) auto clamp(22px, 3vw, 34px);
+    border: 1px solid var(--stroke);
+    border-radius: 10px;
+    background: var(--card);
+  }
+  .roster-panel[hidden] { display: none; }
+  .roster-panel summary {
+    cursor: pointer;
+    padding: 12px 16px;
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .roster-panel summary::marker { color: var(--accent); }
+  .roster-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 16px 12px;
+  }
+  .registrant-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 8px 18px;
+    padding: 0 16px 16px;
+  }
+  .registrant {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    color: var(--ink-dim);
+    font-size: 14px;
+  }
+  .registrant input {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 auto;
+    accent-color: var(--accent);
+  }
+  .registrant span { overflow-wrap: anywhere; }
+
   /* ---------- Court grid: 3 across, 2 down ---------- */
   .courts {
     max-width: 1500px;
@@ -224,7 +315,7 @@
     .card { box-shadow: none; background: #fff; border-color: #999; }
     .courts { gap: 8mm; }
     .eyebrow, .rr { color: #000 !important; -webkit-text-fill-color: #000; }
-    .meta, footer { display: none; }
+    .meta, .controls, .round-navigation, .roster-panel, footer { display: none; }
   }
 </style>
 </head>
@@ -237,23 +328,69 @@
   </div>
   <div class="meta">
     <span class="pill">6 courts</span>
-    <span class="pill">24 players</span>
+    <span class="pill" id="player-count">0 / 24 players</span>
     <span class="pill" id="round">Round 1</span>
   </div>
 </header>
 
+<section class="controls" aria-label="Roster controls">
+  <label class="button" id="roster-file-label" for="roster-file">Import registration HTML</label>
+  <input id="roster-file" type="file" accept="text/html,.html,.htm">
+  <button class="button secondary" id="shuffle" type="button" disabled>Shuffle again</button>
+  <button class="button secondary" id="clear" type="button" disabled>Clear</button>
+  <span class="status" id="status" role="status" aria-live="polite">Import a registration email HTML file to begin.</span>
+</section>
+
+<nav class="round-navigation" aria-label="Round history">
+  <button class="button secondary" id="previous-round" type="button" disabled>← Previous round</button>
+  <span class="round-position" id="round-position">Current round</span>
+  <button class="button secondary" id="next-round" type="button" disabled>Next round →</button>
+  <button class="button" id="complete-round" type="button" disabled>Complete round</button>
+</nav>
+
+<details class="roster-panel" id="roster-panel" hidden>
+  <summary id="roster-summary">Players</summary>
+  <div class="roster-toolbar">
+    <button class="button secondary" id="add-player" type="button">Add Player</button>
+  </div>
+  <div class="registrant-list" id="registrant-list"></div>
+</details>
+
 <main class="courts" id="courts"></main>
 
-<footer>Tap any slot to enter a player’s name.</footer>
+<footer>Import a roster, shuffle again, or edit any player slot manually.</footer>
 
+<script src="registrants.js"></script>
+<script src="round_scheduler.js"></script>
 <script>
+  const COURT_COUNT = 6;
+  const CAPACITY = COURT_COUNT * 4;
+  const STORAGE_KEY = 'roundRobinAssignment:v1';
   const courts = document.getElementById('courts');
-  const slots = [
-    ['tl', 'left'],  ['bl', 'left'],
-    ['tr', 'right'], ['br', 'right']
-  ];
+  const rosterFile = document.getElementById('roster-file');
+  const rosterFileLabel = document.getElementById('roster-file-label');
+  const shuffleButton = document.getElementById('shuffle');
+  const clearButton = document.getElementById('clear');
+  const completeRoundButton = document.getElementById('complete-round');
+  const previousRoundButton = document.getElementById('previous-round');
+  const nextRoundButton = document.getElementById('next-round');
+  const roundLabel = document.getElementById('round');
+  const roundPosition = document.getElementById('round-position');
+  const status = document.getElementById('status');
+  const playerCount = document.getElementById('player-count');
+  const rosterPanel = document.getElementById('roster-panel');
+  const rosterSummary = document.getElementById('roster-summary');
+  const registrantList = document.getElementById('registrant-list');
+  const addPlayerButton = document.getElementById('add-player');
+  let roster = [];
+  let activeRoster = [];
+  let activeSlots = Array(CAPACITY).fill('');
+  let completedRounds = [];
+  let viewedRound = 0;
+  let importInProgress = false;
+  let completingRound = false;
 
-  for (let i = 1; i <= 6; i++) {
+  for (let i = 1; i <= COURT_COUNT; i++) {
     const card = document.createElement('section');
     card.className = 'card';
     card.innerHTML = `
@@ -274,6 +411,317 @@
       <div class="side-label">Team B</div>
     `;
     courts.appendChild(card);
+  }
+
+  const playerInputs = [...document.querySelectorAll('.player')];
+
+  function randomIndex(maxExclusive) {
+    if (!window.crypto?.getRandomValues) return Math.floor(Math.random() * maxExclusive);
+    const range = 0x100000000;
+    const limit = range - (range % maxExclusive);
+    const value = new Uint32Array(1);
+    do window.crypto.getRandomValues(value); while (value[0] >= limit);
+    return value[0] % maxExclusive;
+  }
+
+  function currentScriptRoster() {
+    try {
+      return parseRoster(window.ROUND_ROBIN_ROSTER);
+    } catch (error) {
+      console.error('Could not load registrants.js:', error);
+      return [];
+    }
+  }
+
+  const scriptRoster = currentScriptRoster();
+  let scriptRosterKey = JSON.stringify(scriptRoster);
+
+  function isViewingActiveRound() {
+    return viewedRound === completedRounds.length;
+  }
+
+  function selectedRoster() {
+    return [...registrantList.querySelectorAll('input:checked')].map(input => input.value);
+  }
+
+  function captureActiveRound() {
+    if (!isViewingActiveRound()) return;
+    activeRoster = selectedRoster();
+    activeSlots = playerInputs.map(input => input.value);
+  }
+
+  function updateRosterSummary(locked = !isViewingActiveRound()) {
+    const total = registrantList.querySelectorAll('input[type="checkbox"]').length;
+    const playing = selectedRoster().length;
+    rosterSummary.textContent = `Players (${total}) — ${playing} playing${locked ? ' — locked' : ''}`;
+  }
+
+  function renderRosterChecklist(selectedNames = roster, rosterNames = roster, locked = false) {
+    const selected = new Set(selectedNames);
+    registrantList.replaceChildren();
+    for (const name of rosterNames) {
+      const label = document.createElement('label');
+      label.className = 'registrant';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = name;
+      checkbox.checked = selected.has(name);
+      checkbox.disabled = locked;
+      checkbox.setAttribute('aria-label', `${name} is playing`);
+      const text = document.createElement('span');
+      text.textContent = name;
+      label.append(checkbox, text);
+      registrantList.appendChild(label);
+    }
+    rosterPanel.hidden = rosterNames.length === 0;
+    updateRosterSummary(locked);
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        scriptRosterKey,
+        roster,
+        activeRoster,
+        slots: activeSlots,
+        completedRounds,
+      }));
+    } catch (error) {
+      console.warn('Court assignments could not be saved:', error);
+    }
+  }
+
+  function readState() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY));
+    } catch {
+      return null;
+    }
+  }
+
+  function syncControls() {
+    const active = isViewingActiveRound();
+    const editable = active && !importInProgress;
+    const hasPlayers = activeRoster.length > 0;
+    rosterFile.disabled = !editable;
+    rosterFileLabel.classList.toggle('disabled', !editable);
+    rosterFileLabel.setAttribute('aria-disabled', String(!editable));
+    shuffleButton.disabled = !editable || !hasPlayers;
+    clearButton.disabled = !editable || roster.length === 0;
+    addPlayerButton.disabled = !editable;
+    completeRoundButton.disabled = !editable || !hasPlayers || completingRound;
+    previousRoundButton.disabled = importInProgress || viewedRound === 0;
+    nextRoundButton.disabled = importInProgress || viewedRound === completedRounds.length;
+    playerInputs.forEach(input => { input.readOnly = !editable; });
+    roundLabel.textContent = `Round ${viewedRound + 1}`;
+    roundPosition.textContent = `Round ${viewedRound + 1} (${active ? 'Current' : 'Completed'})`;
+  }
+
+  function updateStatus(message = 'assigned') {
+    const assigned = playerInputs.filter(input => input.value.trim()).length;
+    const overflow = Math.max(0, selectedRoster().length - CAPACITY);
+    playerCount.textContent = `${assigned} / ${CAPACITY} players`;
+    status.className = 'status';
+    status.textContent = overflow
+      ? `${assigned} players ${message}; ${overflow} could not fit on six courts.`
+      : `${assigned} player${assigned === 1 ? '' : 's'} ${message} across six courts.`;
+    updateRosterSummary(false);
+    syncControls();
+  }
+
+  function renderRound() {
+    const active = isViewingActiveRound();
+    const round = active
+      ? { roster, activeRoster, slots: activeSlots }
+      : completedRounds[viewedRound];
+    renderRosterChecklist(round.activeRoster, round.roster, !active);
+    playerInputs.forEach((input, index) => { input.value = round.slots[index] ?? ''; });
+    const assigned = round.slots.filter(name => name.trim()).length;
+    playerCount.textContent = `${assigned} / ${CAPACITY} players`;
+    status.className = 'status';
+    status.textContent = active
+      ? `${assigned} player${assigned === 1 ? '' : 's'} assigned across six courts.`
+      : `Round ${viewedRound + 1} completed with ${assigned} player${assigned === 1 ? '' : 's'}.`;
+    syncControls();
+  }
+
+  function assignRoster() {
+    if (!isViewingActiveRound()) return;
+    activeRoster = selectedRoster();
+    const assignment = RoundRobinScheduler.scheduleRound(activeRoster, completedRounds, {
+      capacity: CAPACITY,
+      randomIndex,
+    });
+    playerInputs.forEach((input, index) => { input.value = assignment.slots[index] ?? ''; });
+    activeSlots = playerInputs.map(input => input.value);
+    updateStatus();
+    if (assignment.partnerRepeats) {
+      status.textContent += ` ${assignment.partnerRepeats} repeat partnership${assignment.partnerRepeats === 1 ? '' : 's'} could not be avoided.`;
+    }
+    saveState();
+  }
+
+  function parseRoster(data) {
+    if (!data || !Array.isArray(data.registrants)) {
+      throw new Error('Expected a JSON object with a “registrants” array.');
+    }
+    const unique = new Map();
+    for (const item of data.registrants) {
+      if (!item || typeof item.name !== 'string') {
+        throw new Error('Each registrant must have a name string.');
+      }
+      const name = item.name.trim();
+      if (!name) throw new Error('Registrant names cannot be empty.');
+      const key = name.toLocaleLowerCase();
+      if (!unique.has(key)) unique.set(key, name);
+    }
+    return [...unique.values()];
+  }
+
+  rosterFile.addEventListener('change', async () => {
+    const file = rosterFile.files[0];
+    if (!file) return;
+    status.className = 'status';
+    status.textContent = `Extracting registrants from ${file.name}…`;
+    importInProgress = true;
+    syncControls();
+    try {
+      const response = await fetch('import-roster', {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || 'text/html' },
+        body: file,
+        cache: 'no-store',
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || `Import failed (${response.status}).`);
+      roster = parseRoster(result.roster);
+      if (!roster.length) throw new Error('The roster is empty.');
+      scriptRosterKey = JSON.stringify(roster);
+      activeRoster = [...roster];
+      activeSlots = Array(CAPACITY).fill('');
+      renderRound();
+      assignRoster();
+    } catch (error) {
+      status.className = 'status error';
+      status.textContent = `Could not import ${file.name}: ${error.message}`;
+    } finally {
+      importInProgress = false;
+      rosterFile.value = '';
+      syncControls();
+    }
+  });
+
+  shuffleButton.addEventListener('click', assignRoster);
+  registrantList.addEventListener('change', event => {
+    if (isViewingActiveRound() && event.target.matches('input[type="checkbox"]')) assignRoster();
+  });
+  addPlayerButton.addEventListener('click', () => {
+    const name = window.prompt('Player name:')?.trim();
+    if (!name) return;
+    if (roster.some(player => player.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      status.className = 'status error';
+      status.textContent = `${name} is already in the player list.`;
+      return;
+    }
+    const selectedPlayers = selectedRoster();
+    roster.push(name);
+    activeRoster = [...selectedPlayers, name];
+    renderRosterChecklist(activeRoster);
+    assignRoster();
+  });
+  clearButton.addEventListener('click', () => {
+    roster = [];
+    activeRoster = [];
+    activeSlots = Array(CAPACITY).fill('');
+    renderRound();
+    status.textContent = 'Roster cleared. Import a registration email HTML file to begin.';
+    saveState();
+  });
+
+  completeRoundButton.addEventListener('click', () => {
+    if (!isViewingActiveRound() || !activeRoster.length || completingRound) return;
+    completingRound = true;
+    syncControls();
+    captureActiveRound();
+    completedRounds.push({
+      roster: [...roster],
+      activeRoster: [...activeRoster],
+      slots: [...activeSlots],
+    });
+    viewedRound = completedRounds.length;
+    activeSlots = Array(CAPACITY).fill('');
+    renderRound();
+    assignRoster();
+    window.setTimeout(() => {
+      completingRound = false;
+      syncControls();
+    }, 500);
+  });
+
+  previousRoundButton.addEventListener('click', () => {
+    if (viewedRound === 0) return;
+    captureActiveRound();
+    viewedRound -= 1;
+    renderRound();
+    saveState();
+  });
+
+  nextRoundButton.addEventListener('click', () => {
+    if (viewedRound >= completedRounds.length) return;
+    viewedRound += 1;
+    renderRound();
+  });
+
+  playerInputs.forEach(input => {
+    input.addEventListener('input', () => {
+      if (!isViewingActiveRound()) return;
+      activeSlots = playerInputs.map(playerInput => playerInput.value);
+      saveState();
+    });
+    input.addEventListener('change', () => {
+      if (!isViewingActiveRound()) return;
+      activeSlots = playerInputs.map(playerInput => playerInput.value);
+      updateStatus('saved');
+      saveState();
+    });
+  });
+
+  function isStringArray(value, expectedLength = null) {
+    return Array.isArray(value) &&
+      (expectedLength === null || value.length === expectedLength) &&
+      value.every(item => typeof item === 'string');
+  }
+
+  const savedState = readState();
+  if (
+    savedState &&
+    savedState.scriptRosterKey === scriptRosterKey &&
+    isStringArray(savedState.roster) &&
+    isStringArray(savedState.slots, CAPACITY)
+  ) {
+    roster = savedState.roster;
+    activeRoster = isStringArray(savedState.activeRoster) ? savedState.activeRoster : roster;
+    activeSlots = savedState.slots;
+    completedRounds = Array.isArray(savedState.completedRounds)
+      ? savedState.completedRounds.filter(round =>
+          round &&
+          isStringArray(round.roster) &&
+          isStringArray(round.activeRoster) &&
+          isStringArray(round.slots, CAPACITY)
+        )
+      : [];
+    viewedRound = completedRounds.length;
+    renderRound();
+    if (roster.length) updateStatus('restored');
+  } else if (scriptRoster.length) {
+    roster = scriptRoster;
+    activeRoster = [...roster];
+    activeSlots = Array(CAPACITY).fill('');
+    viewedRound = 0;
+    renderRound();
+    assignRoster();
+  } else {
+    renderRound();
   }
 </script>
 
