@@ -7,6 +7,7 @@
 
   const VOID_TAGS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
   const STRUCTURAL_TAGS = new Set(['table', 'tr', 'td', 'th']);
+  const CELL_TAGS = new Set(['td', 'th']);
   const NAMED_ENTITIES = {
     amp: '&', apos: "'", quot: '"', lt: '<', gt: '>', nbsp: ' ',
     aacute: 'á', agrave: 'à', acirc: 'â', atilde: 'ã', auml: 'ä', aring: 'å', aelig: 'æ',
@@ -43,6 +44,30 @@
       }
     }
     return -1;
+  }
+
+  function closeImpliedTag(stack, tags) {
+    for (let index = stack.length - 1; index > 0; index--) {
+      if (tags.has(stack[index].tag)) {
+        stack.length = index;
+        return true;
+      }
+      if (stack[index].tag === 'table') return false;
+    }
+    return false;
+  }
+
+  function applyOptionalEndTagRules(stack, tag, closing) {
+    if (!closing && CELL_TAGS.has(tag)) closeImpliedTag(stack, CELL_TAGS);
+    if (!closing && tag === 'tr') {
+      closeImpliedTag(stack, CELL_TAGS);
+      closeImpliedTag(stack, new Set(['tr']));
+    }
+    if (closing && tag === 'tr') closeImpliedTag(stack, CELL_TAGS);
+    if (closing && tag === 'table') {
+      closeImpliedTag(stack, CELL_TAGS);
+      closeImpliedTag(stack, new Set(['tr']));
+    }
   }
 
   function closeTag(stack, tag) {
@@ -94,6 +119,7 @@
       }
       const closing = Boolean(match[1]);
       const tag = match[2].toLowerCase();
+      applyOptionalEndTagRules(stack, tag, closing);
       if (closing) {
         closeTag(stack, tag);
         continue;
@@ -146,14 +172,28 @@
     });
   }
 
-  function normalizeText(value) {
+  function decodeFallbackEntities(value) {
     return decodeNumericEntities(value)
-      .replace(/&([a-z][\w]+);/gi, (entity, name) => NAMED_ENTITIES[name] ?? entity)
+      .replace(/&([a-z][\w]+);/gi, (entity, name) => NAMED_ENTITIES[name] ?? entity);
+  }
+
+  function browserEntityDecoder() {
+    const document = typeof globalThis === 'object' && globalThis.document;
+    if (!document || typeof document.createElement !== 'function') return null;
+    const textArea = document.createElement('textarea');
+    return value => {
+      textArea.innerHTML = value;
+      return textArea.value;
+    };
+  }
+
+  function normalizeText(value, decodeEntities) {
+    return decodeEntities(value)
       .replace(/\s+/g, ' ')
       .trim();
   }
 
-  function cellText(cell) {
+  function cellText(cell, decodeEntities) {
     let value = '';
     function collect(node) {
       for (const child of node.children || []) {
@@ -163,7 +203,7 @@
       }
     }
     collect(cell);
-    return normalizeText(value);
+    return normalizeText(value, decodeEntities);
   }
 
   function directRows(table) {
@@ -182,8 +222,11 @@
     return cells;
   }
 
-  function parseRegistrationEmail(html) {
+  function parseRegistrationEmail(html, options = {}) {
     if (typeof html !== 'string') throw new Error('Registration email HTML must be text.');
+    const decodeEntities = typeof options.decodeEntities === 'function'
+      ? options.decodeEntities
+      : browserEntityDecoder() || decodeFallbackEntities;
     const document = parseDocument(html);
     const tables = [];
     walk(document, node => {
@@ -193,7 +236,7 @@
     const candidates = tables.map(table => directRows(table)
       .map(directCells)
       .filter(cells => cells.length === 2)
-      .map(cells => cells.map(cellText))
+      .map(cells => cells.map(cell => cellText(cell, decodeEntities)))
       .filter(cells => cells[0] && cells[1]));
     const strength = Math.max(0, ...candidates.map(rows => rows.length));
     if (!strength) throw new Error('No registration listing table found.');

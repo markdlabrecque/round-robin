@@ -19,6 +19,12 @@ test('imports the nested candidate table from the saved registration email', () 
   ]);
 });
 
+test('accepts standard omitted table cell and row end tags', () => {
+  const html = '<table><tr><td>Ada<td>Lovelace<tr><td>Grace<td>Hopper</table>';
+
+  assert.deepEqual(parseRegistrationEmail(html), ['Ada Lovelace', 'Grace Hopper']);
+});
+
 test('decodes numeric entities in registration names', () => {
   const html = '<table><tr><td>Zo&#235;</td><td>Bront&#235;</td></tr></table>';
 
@@ -29,6 +35,23 @@ test('decodes named entities in registration names', () => {
   const html = '<table><tr><td>Andr&eacute;</td><td>Garc&iacute;a</td></tr></table>';
 
   assert.deepEqual(parseRegistrationEmail(html), ['André García']);
+});
+
+test('uses an injected full HTML entity decoder for registration names', () => {
+  const html = '<table><tr><td>A&CounterClockwiseContourIntegral;</td><td>B&NotEqualTilde;</td></tr></table>';
+  const decodedValues = [];
+
+  const names = parseRegistrationEmail(html, {
+    decodeEntities(value) {
+      decodedValues.push(value);
+      return value
+        .replaceAll('&CounterClockwiseContourIntegral;', '∳')
+        .replaceAll('&NotEqualTilde;', '≂̸');
+    },
+  });
+
+  assert.deepEqual(names, ['A∳ B≂̸']);
+  assert.deepEqual(decodedValues, ['A&CounterClockwiseContourIntegral;', 'B&NotEqualTilde;']);
 });
 
 test('uses only direct row cells and ignores nested wrapper tables and scripts', () => {

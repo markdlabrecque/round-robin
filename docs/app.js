@@ -23,6 +23,7 @@ const COURT_COUNT = 6;
   let completedRounds = [];
   let viewedRound = 0;
   let importInProgress = false;
+  let initializationSettled = false;
   let completingRound = false;
 
   for (let i = 1; i <= COURT_COUNT; i++) {
@@ -126,7 +127,7 @@ const COURT_COUNT = 6;
 
   function syncControls() {
     const active = isViewingActiveRound();
-    const editable = active && !importInProgress;
+    const editable = initializationSettled && active && !importInProgress;
     const hasPlayers = activeRoster.length > 0;
     registrationFile.disabled = !editable;
     registrationFileLabel.classList.toggle('disabled', !editable);
@@ -271,6 +272,7 @@ const COURT_COUNT = 6;
   });
 
   async function importRegistrationFile() {
+    if (!initializationSettled) return;
     const file = registrationFile.files[0];
     if (!file) return;
     if (!RegistrationImport.isRegistrationHtmlFile(file)) {
@@ -380,7 +382,11 @@ const COURT_COUNT = 6;
     } catch (error) {
       status.className = 'status error';
       status.textContent = `Could not start the demo: ${error.message}`;
+    } finally {
+      initializationSettled = true;
+      syncControls();
     }
   }
 
+  syncControls();
   initializeDemo();
