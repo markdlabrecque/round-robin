@@ -88,6 +88,7 @@
   }
   .meta {
     display: flex;
+    flex: 1 1 auto;
     gap: 10px;
     align-items: center;
     color: var(--ink-dim);
@@ -375,9 +376,9 @@
     </div>
   </div>
   <div class="meta">
-    <span class="pill">6 courts</span>
     <span class="pill" id="player-count">0 / 24 players</span>
     <span class="pill" id="round">Round 1</span>
+    <button class="button secondary" id="reset-app" type="button" style="margin-left: auto;">Reset</button>
   </div>
 </header>
 
@@ -423,6 +424,7 @@
   const rosterSummary = document.getElementById('roster-summary');
   const registrantList = document.getElementById('registrant-list');
   const addPlayerButton = document.getElementById('add-player');
+  const resetButton = document.getElementById('reset-app');
   let roster = [];
   let activeRoster = [];
   let activeSlots = Array(CAPACITY).fill('');
@@ -657,6 +659,17 @@
     if (viewedRound >= completedRounds.length) return;
     viewedRound += 1;
     renderRound();
+  });
+
+  resetButton.addEventListener('click', () => {
+    const confirmed = window.confirm('Reset the app? This clears all saved court assignments and round history in this browser.');
+    if (!confirmed) return;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn('Could not clear saved state:', error);
+    }
+    window.location.reload();
   });
 
   playerInputs.forEach(input => {
