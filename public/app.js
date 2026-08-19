@@ -345,7 +345,7 @@ const COURT_COUNT = 6;
 
   async function initializeDemo() {
     try {
-      const response = await fetch('./registrants.json?v=2', { cache: 'no-store' });
+      const response = await fetch('./demo_roster.json?v=2', { cache: 'no-store' });
       if (!response.ok) throw new Error(`Could not load demo roster (${response.status}).`);
       scriptRoster = parseRoster(await response.json());
       scriptRosterKey = JSON.stringify(scriptRoster);

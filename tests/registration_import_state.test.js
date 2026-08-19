@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { importStatusMessage, isRegistrationHtmlFile, replaceRoster } = require('../docs/registration_import.js');
+const { importStatusMessage, isRegistrationHtmlFile, replaceRoster } = require('../public/registration_import.js');
 
 const emptyState = {
   roster: [],

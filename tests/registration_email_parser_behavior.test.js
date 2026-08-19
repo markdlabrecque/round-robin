@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseRegistrationEmail } = require('../docs/registration_email_parser.js');
+const { parseRegistrationEmail } = require('../public/registration_email_parser.js');
 
 test('imports the nested candidate table from the saved registration email', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'sample.html'), 'utf8');

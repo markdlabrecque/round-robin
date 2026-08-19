@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 test('parses names from a registration listing table fragment', () => {
-  const { parseRegistrationEmail } = require('../docs/registration_email_parser.js');
+  const { parseRegistrationEmail } = require('../public/registration_email_parser.js');
   const listing = `
     <table>
       <tbody>

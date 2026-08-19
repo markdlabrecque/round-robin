@@ -5,9 +5,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const RegistrationImport = require('../docs/registration_import.js');
+const RegistrationImport = require('../public/registration_import.js');
 
-const appSource = fs.readFileSync(path.join(__dirname, '..', 'docs', 'app.js'), 'utf8');
+const appSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
 const controlIds = [
   'courts', 'registration-file', 'registration-file-label', 'shuffle', 'complete-round',
   'previous-round', 'next-round', 'round', 'round-position', 'status', 'player-count',
@@ -100,7 +100,7 @@ function bootApp(fetch, {
     RegistrationImport,
   };
   sandbox.globalThis = sandbox;
-  vm.runInNewContext(appSource, sandbox, { filename: 'docs/app.js' });
+  vm.runInNewContext(appSource, sandbox, { filename: 'public/app.js' });
   return { elements, savedStates };
 }
 

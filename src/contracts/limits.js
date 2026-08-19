@@ -1,0 +1,7 @@
+export const INPUT_LIMITS = Object.freeze({
+  MAX_REQUEST_BYTES: 256 * 1024,
+  MAX_EMAIL_BYTES: 1024 * 1024,
+  MAX_ROSTER_ENTRIES: 200,
+  MAX_PLAYER_NAME_LENGTH: 120,
+});
+export const RETENTION = Object.freeze({ ROSTER_DAYS: 30, IMPORT_DAYS: 30 });

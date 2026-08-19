@@ -7,7 +7,7 @@ const path = require('node:path');
 const { elementsByTag, parseHtmlDocument } = require('./helpers/html_document.js');
 
 const repositoryRoot = path.join(__dirname, '..');
-const deployedRoot = path.join(repositoryRoot, 'docs');
+const deployedRoot = path.join(repositoryRoot, 'public');
 const deployedOrigin = 'https://round-robin.invalid';
 
 function readHtml(relativePath) {
@@ -22,18 +22,18 @@ function cspDirectives(content) {
 }
 
 function localAssetPath(reference) {
-  const url = new URL(reference, `${deployedOrigin}/docs/index.html`);
+  const url = new URL(reference, `${deployedOrigin}/index.html`);
   assert.equal(url.origin, deployedOrigin, `asset must stay on the deployed origin: ${reference}`);
   assert.equal(url.search, '', `asset reference must not depend on a query string: ${reference}`);
   assert.equal(url.hash, '', `asset reference must not depend on a fragment: ${reference}`);
-  assert.ok(url.pathname.startsWith('/docs/'), `asset must be relative to docs/: ${reference}`);
-  const assetPath = path.resolve(deployedRoot, url.pathname.slice('/docs/'.length));
-  assert.ok(assetPath.startsWith(`${deployedRoot}${path.sep}`), `asset escapes docs/: ${reference}`);
+  assert.ok(url.pathname.startsWith('/'), `asset must be relative to docs/: ${reference}`);
+  const assetPath = path.resolve(deployedRoot, url.pathname.slice(1));
+  assert.ok(assetPath.startsWith(`${deployedRoot}${path.sep}`), `asset escapes public/: ${reference}`);
   return assetPath;
 }
 
 test('the deployed index has a strict local-only asset and CSP contract', () => {
-  const document = readHtml('docs/index.html');
+  const document = readHtml('public/index.html');
   const cspMeta = elementsByTag(document, 'meta').filter(meta => meta.attributes.get('http-equiv')?.toLowerCase() === 'content-security-policy');
   const registrationInputs = elementsByTag(document, 'input').filter(input => input.attributes.get('id') === 'registration-file');
   const scripts = elementsByTag(document, 'script');

@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { relationshipHistory, scheduleRound } = require('../round_scheduler.js');
+const { relationshipHistory, scheduleRound } = require('../public/round_scheduler.js');
 
 function seededRandom(seed = 1) {
   return max => {

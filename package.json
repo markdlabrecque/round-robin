@@ -1,0 +1,13 @@
+{
+  "name": "round-robin",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test && node scripts/check_public_bundle.js",
+    "deploy:dry-run": "wrangler deploy --dry-run",
+    "check:public-bundle": "node scripts/check_public_bundle.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
