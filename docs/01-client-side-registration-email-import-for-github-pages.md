@@ -15,9 +15,9 @@ Keep the app on GitHub Pages and process saved registration-email HTML entirely 
 5. [x] Add a restrictive Content Security Policy suitable for the static app, including blocking remote images, frames, objects, and connections, so parsing an email with tracking pixels or remote assets cannot contact those servers. Verify that the local logo, scheduler, roster JSON, inline app code, and import still work under the policy.
 6. [x] Define state behavior explicitly in the UI and tests: importing while viewing the active round is allowed after confirmation if it would discard current assignments or history; importing while viewing a completed round is disabled; canceling the file picker changes nothing; importing more than 24 players keeps the full checklist and reports how many cannot fit.
 7. [x] Make docs/ the documented GitHub Pages application source. Replace or retire the stale root index.html backend-based import flow so local use points to docs/index.html, and add an automated consistency/reference check that fails if deployed files are missing or the obsolete `/import-roster` endpoint returns.
-8. [ ] Run the parser tests, scheduler tests, a local static-server smoke test, and a browser check using sample.html. Verify roster names and count, shuffle and round-history behavior, persistence after reload, useful invalid-file errors, no network requests to URLs embedded in the imported email, mobile controls, and the GitHub Pages path layout.
+8. [x] Run the parser tests, scheduler tests, a local static-server smoke test, and a browser check using sample.html. Verify roster names and count, shuffle and round-history behavior, persistence after reload, useful invalid-file errors, no network requests to URLs embedded in the imported email, mobile controls, and the GitHub Pages path layout.
 
-   Deferred: the interactive browser file-picker smoke could not run in this environment. See `docs/reports/2026-08-19-registration-email-import.md`.
+   The interactive Chromium smoke imported all 24 players from `sample.html`, preserved the imported roster and assignments after reload, completed a round, and disabled import while viewing that completed round. See `docs/reports/2026-08-19-registration-email-import.md`.
 
 ## Completion Checks
 
