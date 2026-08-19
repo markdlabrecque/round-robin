@@ -1,0 +1,15 @@
+From: sender@example.test
+To: registrations@example.test
+Subject: Weekly roster
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="part-boundary"
+
+--part-boundary
+Content-Type: text/plain; charset=utf-8
+
+Roster attached in HTML.
+--part-boundary
+Content-Type: text/html; charset=utf-8
+
+<html><body><img src="https://tracker.invalid/pixel"><table><tr><td>Ada</td><td>Lovelace</td></tr><tr><td>Grace</td><td>Hopper</td></tr></table></body></html>
+--part-boundary--
