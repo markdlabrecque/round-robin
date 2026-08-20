@@ -17,6 +17,9 @@ const COURT_COUNT = 6;
   const registrantList = document.getElementById('registrant-list');
   const addPlayerButton = document.getElementById('add-player');
   const resetButton = document.getElementById('reset-app');
+  const recentImports = document.getElementById('recent-imports');
+  const loadRecentImportButton = document.getElementById('load-recent-import');
+  const retryRecentImportsButton = document.getElementById('retry-recent-imports');
   let roster = [];
   let activeRoster = [];
   let activeSlots = Array(CAPACITY).fill('');
@@ -25,6 +28,7 @@ const COURT_COUNT = 6;
   let importInProgress = false;
   let initializationSettled = false;
   let completingRound = false;
+  let availableImports = [];
 
   for (let i = 1; i <= COURT_COUNT; i++) {
     const card = document.createElement('section');
@@ -208,6 +212,8 @@ const COURT_COUNT = 6;
 
   shuffleButton.addEventListener('click', assignRoster);
   registrationFile.addEventListener('change', importRegistrationFile);
+  if (loadRecentImportButton) loadRecentImportButton.addEventListener('click', loadRecentImport);
+  if (retryRecentImportsButton) retryRecentImportsButton.addEventListener('click', loadRecentImports);
   registrantList.addEventListener('change', event => {
     if (isViewingActiveRound() && event.target.matches('input[type="checkbox"]')) assignRoster();
   });
@@ -343,45 +349,141 @@ const COURT_COUNT = 6;
       value.every(item => typeof item === 'string');
   }
 
-  async function initializeDemo() {
-    try {
-      const response = await fetch('./demo_roster.json?v=2', { cache: 'no-store' });
-      if (!response.ok) throw new Error(`Could not load demo roster (${response.status}).`);
-      scriptRoster = parseRoster(await response.json());
-      scriptRosterKey = JSON.stringify(scriptRoster);
+  function setRecentImportsState({ disabled, retry = false } = {}) {
+    if (recentImports) recentImports.disabled = disabled;
+    if (loadRecentImportButton) loadRecentImportButton.disabled = disabled;
+    if (retryRecentImportsButton) retryRecentImportsButton.hidden = !retry;
+  }
 
-      const savedState = readState();
-      if (
-        savedState &&
-        savedState.scriptRosterKey === scriptRosterKey &&
-        isStringArray(savedState.roster) &&
-        isStringArray(savedState.slots, CAPACITY)
-      ) {
-        roster = savedState.roster;
-        activeRoster = isStringArray(savedState.activeRoster) ? savedState.activeRoster : roster;
-        activeSlots = savedState.slots;
-        completedRounds = Array.isArray(savedState.completedRounds)
-          ? savedState.completedRounds.filter(round =>
-              round &&
-              isStringArray(round.roster) &&
-              isStringArray(round.activeRoster) &&
-              isStringArray(round.slots, CAPACITY)
-            )
-          : [];
-        viewedRound = completedRounds.length;
-        renderRound();
-        if (roster.length) updateStatus('restored');
-      } else {
-        roster = scriptRoster;
-        activeRoster = [...roster];
-        activeSlots = Array(CAPACITY).fill('');
-        viewedRound = 0;
-        renderRound();
-        assignRoster();
+  function apiError(response, resource) {
+    if (response.status === 401 || response.status === 403) return new Error('You are not authorized to view recent imports.');
+    if (response.status === 404) return new Error(`${resource} was not found.`);
+    if (response.status === 410) return new Error(`${resource} has expired.`);
+    return new Error(`Could not load ${resource} (${response.status}).`);
+  }
+
+  function showRecentImportsError(error, resource = 'recent imports') {
+    const offline = error && (error.name === 'TypeError' || /offline|network/i.test(error.message));
+    status.className = 'status error';
+    status.textContent = offline
+      ? recentImports
+        ? 'You are offline. Local HTML import is still available.'
+        : `Could not start the demo: ${error.message}. You are offline. Local HTML import is still available.`
+      : `Could not load ${resource}: ${error.message}`;
+    setRecentImportsState({ disabled: false, retry: true });
+  }
+
+  function renderRecentImports(imports) {
+    if (!recentImports) return;
+    recentImports.replaceChildren();
+    if (!imports.length) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No recent imports are available.';
+      recentImports.appendChild(option);
+      setRecentImportsState({ disabled: true });
+      status.className = 'status';
+      status.textContent = 'No recent imports are available. Local HTML import is still available.';
+      return;
+    }
+    for (const imported of imports) {
+      const option = document.createElement('option');
+      option.value = imported.rosterId;
+      option.textContent = `Import received ${imported.receivedAt}`;
+      recentImports.appendChild(option);
+    }
+    setRecentImportsState({ disabled: false });
+    status.className = 'status';
+    status.textContent = 'Choose a recent import or use a local HTML file.';
+  }
+
+  function useRoster(names, key) {
+    const result = RegistrationImport.replaceRoster({ roster, activeRoster, activeSlots, completedRounds, viewedRound }, names, CAPACITY, () => window.confirm(
+      'Loading this roster will discard the current court assignments and round history. Continue?'
+    ));
+    if (result.status === 'disabled') throw new Error('Import is unavailable while viewing a completed round.');
+    if (result.status === 'cancelled') return false;
+    ({ roster, activeRoster, activeSlots, completedRounds, viewedRound } = result.state);
+    scriptRosterKey = key;
+    renderRound();
+    assignRoster();
+    saveState();
+    return true;
+  }
+
+  async function loadRecentImport() {
+    const rosterId = recentImports && recentImports.value;
+    if (!rosterId || !availableImports.some(imported => imported.rosterId === rosterId)) {
+      status.className = 'status error';
+      status.textContent = 'Choose a recent import before loading it.';
+      return;
+    }
+    importInProgress = true;
+    let loaded = false;
+    syncControls();
+    setRecentImportsState({ disabled: true });
+    try {
+      const response = await fetch(`/api/rosters/${encodeURIComponent(rosterId)}`, { cache: 'no-store' });
+      if (!response.ok) throw apiError(response, 'This import');
+      const data = await response.json();
+      if (!data || data.version !== 1 || !data.roster || data.roster.id !== rosterId) throw new Error('The roster response was malformed.');
+      const names = parseRoster(data.roster);
+      if (useRoster(names, `remote:${rosterId}`)) {
+        loaded = true;
+        status.className = 'status';
+        status.textContent = `Loaded ${names.length} player${names.length === 1 ? '' : 's'} from a recent import.`;
       }
     } catch (error) {
-      status.className = 'status error';
-      status.textContent = `Could not start the demo: ${error.message}`;
+      showRecentImportsError(error, 'this import');
+    } finally {
+      importInProgress = false;
+      syncControls();
+      if (availableImports.length && loaded) setRecentImportsState({ disabled: false, retry: false });
+    }
+  }
+
+  function restoreDemoState(data) {
+    scriptRoster = parseRoster(data);
+    scriptRosterKey = JSON.stringify(scriptRoster);
+    const savedState = readState();
+    if (savedState && savedState.scriptRosterKey === scriptRosterKey && isStringArray(savedState.roster) && isStringArray(savedState.slots, CAPACITY)) {
+      roster = savedState.roster;
+      activeRoster = isStringArray(savedState.activeRoster) ? savedState.activeRoster : roster;
+      activeSlots = savedState.slots;
+      completedRounds = Array.isArray(savedState.completedRounds) ? savedState.completedRounds.filter(round => round && isStringArray(round.roster) && isStringArray(round.activeRoster) && isStringArray(round.slots, CAPACITY)) : [];
+      viewedRound = completedRounds.length;
+      renderRound();
+      if (roster.length) updateStatus('restored');
+      return;
+    }
+    roster = scriptRoster;
+    activeRoster = [...roster];
+    activeSlots = Array(CAPACITY).fill('');
+    viewedRound = 0;
+    renderRound();
+    assignRoster();
+  }
+
+  async function loadRecentImports() {
+    setRecentImportsState({ disabled: true });
+    status.className = 'status';
+    status.textContent = 'Loading recent imports…';
+    try {
+      const response = await fetch('/api/imports', { cache: 'no-store' });
+      if (!response.ok) throw apiError(response, 'Recent imports');
+      const data = await response.json();
+      // Kept only for saved-browser compatibility with the pre-API demo fixture.
+      if (data && Array.isArray(data.registrants)) {
+        restoreDemoState(data);
+        return;
+      }
+      if (!data || data.version !== 1 || !Array.isArray(data.imports) || !data.imports.every(imported => imported && typeof imported.id === 'string' && typeof imported.rosterId === 'string' && typeof imported.receivedAt === 'string')) {
+        throw new Error('The recent-import response was malformed.');
+      }
+      availableImports = data.imports;
+      renderRecentImports(availableImports);
+    } catch (error) {
+      showRecentImportsError(error);
     } finally {
       initializationSettled = true;
       syncControls();
@@ -389,4 +491,4 @@ const COURT_COUNT = 6;
   }
 
   syncControls();
-  initializeDemo();
+  loadRecentImports();
