@@ -4,6 +4,29 @@
 
 Move the app from GitHub Pages to Cloudflare without changing its public behavior. Keep registration-email file import in the browser first, then add an inbox without redesigning the parser or exposing registration data. Once migration starts, this document supersedes the GitHub Pages source-layout direction in `01-client-side-registration-email-import-for-github-pages.md`.
 
+## Implementation status
+
+The detailed system of record is `03-cloudflare-migration-implementation.md`.
+
+Completed on the `cloudflare-migration` branch:
+
+- Browser registration-email import and its local fallback behavior
+- A single deployable asset tree under `public/`
+- Wrangler and npm local commands
+- A minimal Worker with versioned `/api/health`
+- Initial runtime-independent API, repository, validation, limit, and email-ingestion contracts
+- Public-bundle checks and local Wrangler dry-run and serving evidence
+
+Implemented in child worktrees but not reviewed or integrated:
+
+- Bounded inbound MIME decoding and email-handler behavior
+- Browser recent-import listing and roster loading
+- Additive Worker security headers, CSP, same-origin checks, and CORS removal
+
+Remaining engineering begins with correcting the shared persistence contract. The correction must support one atomic import-and-roster write, database-backed delivery idempotency, and the recent-import API shape. D1 migrations and API implementation follow that change. Browser failure handling, email hardening, cross-branch security evidence, deployment documentation, integration, and the complete release-candidate gate remain outstanding.
+
+Nothing has been deployed to Cloudflare. DNS, Access, Email Routing, production or preview D1, custom hostnames, and cutover have not started. `main` and GitHub Pages remain unchanged.
+
 ## Recommended target
 
 Use Cloudflare Workers with Static Assets rather than a new Pages project. Pages can host this app, but Workers Static Assets puts the site, same-origin API, and future inbound-email handler in one deployable service.
