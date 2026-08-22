@@ -19,7 +19,7 @@ Parallel branches contain unintegrated work:
 - `markdlabrecque/cf-browser-imports`: recent-import and roster-loading UI code is implemented locally and its current tests pass. Review requires strict rejection of malformed or unversioned API envelopes, state-preservation and failure-path coverage, external-request coverage, and an accessible roster-loading announcement.
 - `markdlabrecque/cf-security-gates`: additive CSP, response-header, same-origin and CORS checks are implemented locally and tests pass. Final approval depends on integration with the email branch so inbound MIME resource isolation can be proved.
 
-No user decision blocks the remaining engineering. Domain, Access, retention, archive, plain-text email, and alerting decisions are required only before live Cloudflare setup.
+No user decision blocks the remaining engineering. Live provisioning is user-approved as of 2026-08-21: domain `roundrobin.space` (purchased), app at `roundrobin.space`, inbox `registration@roundrobin.space`, Access admits `markdlabrecque@pm.me` only, Cloudflare account signs up as `markdlabrecque@pm.me`, tracer-bullet deploys run with `wrangler` from the local machine, and free tiers are required wherever they cover the need. Retention, archive, plain-text email, and alerting decisions remain open and gate only the inbox-phase engineering.
 
 ## Action plan
 
@@ -33,7 +33,7 @@ No user decision blocks the remaining engineering. Domain, Access, retention, ar
 8. [ ] Run a deployment/runbook development-workflow pipeline in its own worktree after runtime contracts stabilize. Document exact local build, test, preview deploy, D1 migration, rollback, and cutover commands; define preview versus production bindings; add CI-safe dry-run validation. Use placeholders for account IDs, database IDs, hostnames, Access identities, and email routes, and never authenticate to or change Cloudflare.
 9. [ ] Integrate each reviewed branch into `cloudflare-migration` one at a time. Before each merge, update it onto the latest integration branch and rerun its targeted tests and the full project gate. Resolve shared-contract changes centrally rather than allowing sibling teams to edit each other's files.
 10. [ ] Run the release-candidate gates locally: parser and scheduler fixtures, Worker tests, disposable D1 migrations, static-bundle checks, browser smoke tests, inbound-email fixtures, log-redaction checks, and `wrangler dev`. Produce a readiness report listing code-complete items and the remaining live Cloudflare actions.
-11. [ ] Stop before any live move. Require explicit user approval and final values for domain and hostnames, Access identities, roster visibility, retention, plain-text email support, archival forwarding, and alert recipients before creating Cloudflare resources, changing DNS, enabling Email Routing, or deploying production.
+11. [ ] Live provisioning is user-approved (see Current status and `02-cloudflare-migration-next-steps.md`, Confirmed direction). Roster visibility, retention, plain-text email support, archival forwarding, and alert recipients are still required before the inbox phase.
 12. [ ] In the later cutover phase, use preview first, verify Access cannot be bypassed through `workers.dev`, test one representative real email without exposing registration data, attach the custom hostname, retain GitHub Pages for rollback, and record the deployed version and rollback evidence.
 
 ## Completion Checks

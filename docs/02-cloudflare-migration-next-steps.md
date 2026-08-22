@@ -4,6 +4,18 @@
 
 Move the app from GitHub Pages to Cloudflare without changing its public behavior. Keep registration-email file import in the browser first, then add an inbox without redesigning the parser or exposing registration data. Once migration starts, this document supersedes the GitHub Pages source-layout direction in `01-client-side-registration-email-import-for-github-pages.md`.
 
+## Confirmed direction
+
+Confirmed 2026-08-21 for the live provisioning pass:
+
+- Domain: `roundrobin.space`, already purchased.
+- App hostname: `roundrobin.space`, served by the Worker over HTTPS, with HTTP redirected to HTTPS.
+- Inbox: `registration@roundrobin.space`, routed by Cloudflare Email Routing to the Worker's `email` handler.
+- Cloudflare Access admits `markdlabrecque@pm.me` only, until someone else needs in.
+- Free tiers wherever possible. Workers, Static Assets, D1, Access, and Email Routing free plans cover this scale; the domain was the only purchase.
+- The Cloudflare account signs up as `markdlabrecque@pm.me` with a temporary password the owner resets later.
+- The tracer bullet deploys with `wrangler` from the local machine. Workers Builds can be connected later if GitHub-based deploys are wanted.
+
 ## Implementation status
 
 The detailed system of record is `03-cloudflare-migration-implementation.md`.
@@ -38,10 +50,10 @@ The eventual stack is:
 - Cloudflare Email Routing and an `email` handler for forwarded messages
 - D1 for parsed rosters and import metadata
 - Cloudflare Access for the app and roster API
-- A custom hostname such as `roundrobin.example.com`
-- An inbox such as `registrations@example.com`
+- The app hostname `roundrobin.space`
+- The inbox `registration@roundrobin.space`
 
-Static hosting, Worker requests, Email Routing, Access, and light D1 use should fit their free tiers at this scale. The domain is the expected recurring cost. Confirm Cloudflare's current quotas before provisioning.
+Static hosting, Worker requests, Email Routing, Access, and light D1 use should fit their free tiers at this scale. The domain is already purchased, so no further recurring cost is expected. Stay within free tiers wherever possible and confirm Cloudflare's current quotas before provisioning.
 
 ## Architecture contracts
 
@@ -165,10 +177,10 @@ Use a message fingerprint for idempotency without retaining raw content. Keep pa
 
 Exit check: the custom domain works on desktop and mobile, local upload still works, one forwarded email imports successfully, and rollback has been tested without touching production data.
 
-## Decisions needed before the inbox phase
+## Decisions still open before the inbox phase
 
-- The custom domain and final app and inbox hostnames
-- Which identities Cloudflare Access should admit
+Domain, hostnames, and Access identities are decided; see Confirmed direction. Still open:
+
 - Whether every approved user sees every imported roster
 - How long parsed rosters should remain available
 - Whether plain-text-only emails need support
