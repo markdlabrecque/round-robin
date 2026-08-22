@@ -37,7 +37,7 @@ Implemented in child worktrees but not reviewed or integrated:
 
 Remaining engineering begins with correcting the shared persistence contract. The correction must support one atomic import-and-roster write, database-backed delivery idempotency, and the recent-import API shape. D1 migrations and API implementation follow that change. Browser failure handling, email hardening, cross-branch security evidence, deployment documentation, integration, and the complete release-candidate gate remain outstanding.
 
-Nothing has been deployed to Cloudflare. DNS, Access, Email Routing, production or preview D1, custom hostnames, and cutover have not started. `main` and GitHub Pages remain unchanged.
+Nothing has been deployed to Cloudflare. DNS, Access, Email Routing, production or preview D1, custom hostnames, and cutover have not started. `main` and GitHub Pages remain unchanged. A live provisioning pass began 2026-08-21 and is paused at account signup on a human Turnstile step. The resume point and remaining provisioning order are in the Live provisioning log of `03-cloudflare-migration-implementation.md`.
 
 ## Recommended target
 
