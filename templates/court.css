@@ -20,7 +20,7 @@
 
 .court-tpl .court {
   position: relative;
-  aspect-ratio: 20 / 34;          /* portrait, slightly foreshortened from 20/44 to fit */
+  /* The sizing spacer below keeps a portrait court while allowing long names to grow it. */
   max-width: 340px;
   margin-inline: auto;
   display: grid;
@@ -31,6 +31,13 @@
   overflow: hidden;
   background: var(--court-out);
   box-shadow: inset 0 0 60px rgba(0,0,0,.35);
+}
+
+.court-tpl .court::before {
+  content: "";
+  grid-area: 1 / 1 / 5 / 3;
+  aspect-ratio: 20 / 34;
+  pointer-events: none;
 }
 
 .court-tpl .zone {
@@ -75,23 +82,45 @@
 .court-tpl .net::before { left: -6px; }
 .court-tpl .net::after  { right: -6px; }
 
-.court-tpl .player {
+.court-tpl .player-slot {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+.court-tpl .player-name, .court-tpl .player {
   width: 100%;
   max-width: 100%;
   text-align: center;
-  font: 600 clamp(11px, 1.05vw, 15px)/1.25 inherit;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
   color: #fff;
   background: rgba(8,14,26,.42);
   border: 1px solid rgba(255,255,255,.28);
   border-radius: 8px;
   padding: 8px 6px;
   outline: none;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   transition: background .15s, border-color .15s, box-shadow .15s;
 }
+.court-tpl .player-name span { display: block; }
+.court-tpl .player-name:empty::before { content: attr(data-placeholder); color: rgba(255,255,255,.5); }
+.court-tpl .player {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  resize: none;
+  opacity: 0;
+}
+/* Locked names must show keyboard focus immediately without opening the editor. */
+.court-tpl .player-slot:has(.player[readonly]) .player-name { transition: none; }
+.court-tpl .player:focus:not([readonly]) { opacity: 1; }
+.court-tpl .player-slot:has(.player:focus:not([readonly])) .player-name { visibility: hidden; }
 .court-tpl .player::placeholder { color: rgba(255,255,255,.5); font-weight: 500; }
 .court-tpl .player:hover { background: rgba(8,14,26,.55); }
-.court-tpl .player:focus {
+.court-tpl .player:focus,
+.court-tpl .player-slot:has(.player:focus[readonly]) .player-name {
   background: rgba(8,14,26,.75);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255,209,102,.25);

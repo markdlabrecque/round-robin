@@ -10,14 +10,36 @@
   <div class="side-label">{{TEAM_TOP}}</div>
 
   <div class="court">
-    <div class="zone svc tl"><input class="player" type="text" placeholder="{{PLAYER_1}}" aria-label="{{COURT}}, top side, player 1"></div>
-    <div class="zone svc tr"><input class="player" type="text" placeholder="{{PLAYER_2}}" aria-label="{{COURT}}, top side, player 2"></div>
+    <div class="zone svc tl"><div class="player-slot"><div class="player-name" data-placeholder="{{PLAYER_1}}" aria-hidden="true"></div><textarea class="player" rows="2" placeholder="{{PLAYER_1}}" aria-label="{{COURT}}, top side, player 1"></textarea></div></div>
+    <div class="zone svc tr"><div class="player-slot"><div class="player-name" data-placeholder="{{PLAYER_2}}" aria-hidden="true"></div><textarea class="player" rows="2" placeholder="{{PLAYER_2}}" aria-label="{{COURT}}, top side, player 2"></textarea></div></div>
     <div class="zone kitchen near"></div>
     <div class="zone kitchen far"></div>
-    <div class="zone svc bl"><input class="player" type="text" placeholder="{{PLAYER_3}}" aria-label="{{COURT}}, bottom side, player 1"></div>
-    <div class="zone svc br"><input class="player" type="text" placeholder="{{PLAYER_4}}" aria-label="{{COURT}}, bottom side, player 2"></div>
+    <div class="zone svc bl"><div class="player-slot"><div class="player-name" data-placeholder="{{PLAYER_3}}" aria-hidden="true"></div><textarea class="player" rows="2" placeholder="{{PLAYER_3}}" aria-label="{{COURT}}, bottom side, player 1"></textarea></div></div>
+    <div class="zone svc br"><div class="player-slot"><div class="player-name" data-placeholder="{{PLAYER_4}}" aria-hidden="true"></div><textarea class="player" rows="2" placeholder="{{PLAYER_4}}" aria-label="{{COURT}}, bottom side, player 2"></textarea></div></div>
     <div class="net"></div>
   </div>
 
   <div class="side-label">{{TEAM_BOTTOM}}</div>
 </section>
+<script>
+  // Hosts assigning .value programmatically should dispatch an input event.
+  document.currentScript.previousElementSibling.querySelectorAll('.player').forEach(input => {
+    function renderName() {
+      const display = input.previousElementSibling;
+      const tokens = input.value.trim().split(/\s+/).filter(Boolean);
+      display.replaceChildren();
+      if (!tokens.length) return;
+      const first = document.createElement('span');
+      first.textContent = tokens.shift();
+      display.append(first);
+      if (tokens.length) {
+        const remainder = document.createElement('span');
+        remainder.textContent = tokens.join(' ');
+        display.append(remainder);
+      }
+    }
+    input.addEventListener('input', renderName);
+    input.addEventListener('change', renderName);
+    renderName();
+  });
+</script>
