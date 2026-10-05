@@ -212,8 +212,9 @@
     align-items: center;
     gap: 9px;
     min-width: 0;
-    color: var(--ink-dim);
-    font-size: 14px;
+    color: var(--ink);
+    font-size: 18px;
+    line-height: 1.4;
   }
   .registrant input {
     width: 17px;
@@ -259,7 +260,7 @@
   /* ---------- The court ---------- */
   .court {
     position: relative;
-    aspect-ratio: 20 / 34;              /* portrait court, slightly foreshortened to fit */
+    /* The sizing spacer below keeps a portrait court while allowing long names to grow it. */
     max-width: 340px;
     margin-inline: auto;
     display: grid;
@@ -270,6 +271,12 @@
     overflow: hidden;
     background: var(--court-out);
     box-shadow: inset 0 0 60px rgba(0,0,0,.35);
+  }
+  .court::before {
+    content: "";
+    grid-area: 1 / 1 / 5 / 3;
+    aspect-ratio: 20 / 34;
+    pointer-events: none;
   }
   .zone {
     display: flex;
@@ -316,20 +323,39 @@
   .net::after  { right: -6px; }
 
   /* ---------- Player name slots ---------- */
-  .player {
+  .player-slot {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+  }
+  .player-name, .player {
     width: 100%;
     max-width: 100%;
     text-align: center;
-    font: 600 clamp(11px, 1.05vw, 15px)/1.25 inherit;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
     color: #fff;
     background: rgba(8,14,26,.42);
     border: 1px solid rgba(255,255,255,.28);
     border-radius: 8px;
     padding: 8px 6px;
     outline: none;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
     transition: background .15s, border-color .15s, box-shadow .15s;
   }
+  .player-name span { display: block; }
+  .player-name:empty::before { content: attr(data-placeholder); color: rgba(255,255,255,.5); }
+  .player {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    resize: none;
+    opacity: 0;
+  }
+  .player:focus:not([readonly]) { opacity: 1; }
+  .player-slot:has(.player:focus:not([readonly])) .player-name { visibility: hidden; }
   .player::placeholder { color: rgba(255,255,255,.5); font-weight: 500; }
   .player:hover { background: rgba(8,14,26,.55); }
   .player:focus {
@@ -442,12 +468,12 @@
       </div>
       <div class="side-label">Team A</div>
       <div class="court">
-        <div class="zone svc tl"><input class="player" type="text" placeholder="Player 1" aria-label="Court ${i}, top side, player 1"></div>
-        <div class="zone svc tr"><input class="player" type="text" placeholder="Player 2" aria-label="Court ${i}, top side, player 2"></div>
+        <div class="zone svc tl"><div class="player-slot"><div class="player-name" data-placeholder="Player 1" aria-hidden="true"></div><textarea class="player" rows="2" placeholder="Player 1" aria-label="Court ${i}, top side, player 1"></textarea></div></div>
+        <div class="zone svc tr"><div class="player-slot"><div class="player-name" data-placeholder="Player 2" aria-hidden="true"></div><textarea class="player" rows="2" placeholder="Player 2" aria-label="Court ${i}, top side, player 2"></textarea></div></div>
         <div class="zone kitchen near"></div>
         <div class="zone kitchen far"></div>
-        <div class="zone svc bl"><input class="player" type="text" placeholder="Player 3" aria-label="Court ${i}, bottom side, player 1"></div>
-        <div class="zone svc br"><input class="player" type="text" placeholder="Player 4" aria-label="Court ${i}, bottom side, player 2"></div>
+        <div class="zone svc bl"><div class="player-slot"><div class="player-name" data-placeholder="Player 3" aria-hidden="true"></div><textarea class="player" rows="2" placeholder="Player 3" aria-label="Court ${i}, bottom side, player 1"></textarea></div></div>
+        <div class="zone svc br"><div class="player-slot"><div class="player-name" data-placeholder="Player 4" aria-hidden="true"></div><textarea class="player" rows="2" placeholder="Player 4" aria-label="Court ${i}, bottom side, player 2"></textarea></div></div>
         <div class="net"></div>
       </div>
       <div class="side-label">Team B</div>
@@ -456,6 +482,21 @@
   }
 
   const playerInputs = [...document.querySelectorAll('.player')];
+
+  function renderPlayerName(input) {
+    const display = input.previousElementSibling;
+    const tokens = input.value.trim().split(/\s+/).filter(Boolean);
+    display.replaceChildren();
+    if (!tokens.length) return;
+    const first = document.createElement('span');
+    first.textContent = tokens.shift();
+    display.append(first);
+    if (tokens.length) {
+      const remainder = document.createElement('span');
+      remainder.textContent = tokens.join(' ');
+      display.append(remainder);
+    }
+  }
 
   function randomIndex(maxExclusive) {
     if (!window.crypto?.getRandomValues) return Math.floor(Math.random() * maxExclusive);
@@ -565,7 +606,10 @@
       ? { roster, activeRoster, slots: activeSlots }
       : completedRounds[viewedRound];
     renderRosterChecklist(round.activeRoster, round.roster, !active);
-    playerInputs.forEach((input, index) => { input.value = round.slots[index] ?? ''; });
+    playerInputs.forEach((input, index) => {
+      input.value = round.slots[index] ?? '';
+      renderPlayerName(input);
+    });
     const assigned = round.slots.filter(name => name.trim()).length;
     playerCount.textContent = `${assigned} / ${CAPACITY} players`;
     status.className = 'status';
@@ -582,7 +626,10 @@
       capacity: CAPACITY,
       randomIndex,
     });
-    playerInputs.forEach((input, index) => { input.value = assignment.slots[index] ?? ''; });
+    playerInputs.forEach((input, index) => {
+      input.value = assignment.slots[index] ?? '';
+      renderPlayerName(input);
+    });
     activeSlots = playerInputs.map(input => input.value);
     updateStatus();
     if (assignment.partnerRepeats) {
@@ -675,11 +722,13 @@
   playerInputs.forEach(input => {
     input.addEventListener('input', () => {
       if (!isViewingActiveRound()) return;
+      renderPlayerName(input);
       activeSlots = playerInputs.map(playerInput => playerInput.value);
       saveState();
     });
     input.addEventListener('change', () => {
       if (!isViewingActiveRound()) return;
+      renderPlayerName(input);
       activeSlots = playerInputs.map(playerInput => playerInput.value);
       updateStatus('saved');
       saveState();
