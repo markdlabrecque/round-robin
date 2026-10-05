@@ -85,14 +85,24 @@
     return null;
   }
 
-  function opponentCost(teamA, teamB, opponentHistory) {
+  // Convex costs distinguish concentrated reuse from the same total spread
+  // across less-used relationships. Zero still means a fresh relationship.
+  function repeatPenalty(count) {
+    return count * count;
+  }
+
+  function opponentCost(teamA, teamB, opponentHistory, penalty = repeatPenalty) {
     let cost = 0;
-    for (const a of teamA) for (const b of teamB) cost += opponentHistory.get(pairKey(a, b)) || 0;
+    for (const a of teamA) for (const b of teamB) {
+      cost += penalty(opponentHistory.get(pairKey(a, b)) || 0);
+    }
     return cost;
   }
 
   function arrangeCourts(teams, opponentHistory, randomIndex) {
     const memo = new Map();
+    const costs = teams.map((team, i) => teams.map((other, j) =>
+      j > i ? opponentCost(team, other, opponentHistory) : 0));
 
     function solve(mask, allowSolo) {
       if (!mask) return { cost: 0, games: [] };
@@ -112,7 +122,7 @@
         if (!(withoutFirst & (1 << other))) continue;
         const rest = solve(withoutFirst & ~(1 << other), allowSolo);
         choices.push({
-          cost: opponentCost(teams[first], teams[other], opponentHistory) + rest.cost,
+          cost: costs[first][other] + rest.cost,
           games: [[teams[first], teams[other]], ...rest.games],
         });
       }
@@ -127,9 +137,9 @@
     return solve((1 << teams.length) - 1, (teams.length % 2) === 1);
   }
 
-  function partnerRepeatCost(teams, partnerHistory) {
+  function partnerRepeatCost(teams, partnerHistory, penalty = repeatPenalty) {
     return teams.reduce((cost, team) => cost + (
-      team.length === 2 ? (partnerHistory.get(pairKey(team[0], team[1])) || 0) : 0
+      team.length === 2 ? penalty(partnerHistory.get(pairKey(team[0], team[1])) || 0) : 0
     ), 0);
   }
 
@@ -159,39 +169,43 @@
     let best = null;
 
     // Sample multiple valid partner matchings, then choose the one whose court
-    // arrangement introduces the fewest repeat opponents.
+    // arrangement spreads opponent reuse with the lowest convex cost.
     const samples = options.samples || 160;
     for (let i = 0; i < samples; i++) {
       const teams = findFreshPartnerTeams(activePlayers, history.partners, randomIndex, 100000);
       if (!teams) break;
       const courts = arrangeCourts(teams, history.opponents, randomIndex);
-      if (!best || courts.cost < best.opponentRepeats) {
-        best = { teams, games: courts.games, partnerRepeats: 0, opponentRepeats: courts.cost };
+      if (!best || courts.cost < best.opponentCost ||
+          (courts.cost === best.opponentCost && randomIndex(2) === 0)) {
+        best = { teams, games: courts.games, partnerCost: 0, opponentCost: courts.cost };
         if (courts.cost === 0) break;
       }
     }
 
     // This is only needed after the available unique partnerships are exhausted.
-    // Minimize repeats rather than refusing to create the next round.
+    // Spread partner reuse first, then opponent reuse, instead of refusing a round.
     if (!best) {
       const attempts = options.fallbackSamples || 4000;
       for (let i = 0; i < attempts; i++) {
         const teams = randomTeams(activePlayers, randomIndex);
-        const partnerRepeats = partnerRepeatCost(teams, history.partners);
-        if (best && partnerRepeats > best.partnerRepeats) continue;
+        const partnerCost = partnerRepeatCost(teams, history.partners);
+        if (best && partnerCost > best.partnerCost) continue;
         const courts = arrangeCourts(teams, history.opponents, randomIndex);
-        if (!best || partnerRepeats < best.partnerRepeats ||
-            (partnerRepeats === best.partnerRepeats && courts.cost < best.opponentRepeats)) {
-          best = { teams, games: courts.games, partnerRepeats, opponentRepeats: courts.cost };
+        if (!best || partnerCost < best.partnerCost ||
+            (partnerCost === best.partnerCost && (courts.cost < best.opponentCost ||
+              (courts.cost === best.opponentCost && randomIndex(2) === 0)))) {
+          best = { teams, games: courts.games, partnerCost, opponentCost: courts.cost };
         }
       }
     }
 
-    if (!best) best = { games: [], partnerRepeats: 0, opponentRepeats: 0 };
+    if (!best) best = { teams: [], games: [] };
+    // Public metrics remain linear counts of prior meetings, not selection costs.
     return {
       slots: gamesToSlots(best.games, capacity, randomIndex),
-      partnerRepeats: best.partnerRepeats,
-      opponentRepeats: best.opponentRepeats,
+      partnerRepeats: partnerRepeatCost(best.teams, history.partners, count => count),
+      opponentRepeats: best.games.reduce((sum, game) => sum + (game.length === 2
+        ? opponentCost(game[0], game[1], history.opponents, count => count) : 0), 0),
     };
   }
 
