@@ -358,7 +358,8 @@
   .player-slot:has(.player:focus:not([readonly])) .player-name { visibility: hidden; }
   .player::placeholder { color: rgba(255,255,255,.5); font-weight: 500; }
   .player:hover { background: rgba(8,14,26,.55); }
-  .player:focus {
+  .player:focus,
+  .player-slot:has(.player:focus[readonly]) .player-name {
     background: rgba(8,14,26,.75);
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(255,209,102,.25);

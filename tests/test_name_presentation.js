@@ -149,6 +149,23 @@ for (const pagePath of ['index.html', 'docs/index.html']) {
     assert.equal(display.text, edited, 'completed round must render its saved name');
     const letters = display.glyphs.filter(g => !/\s/.test(g.char));
     assert.ok(letters[5].y > letters[0].y + 1, 'history must retain two-part presentation');
+    await page.locator('#roster-summary').focus();
+    await page.keyboard.press('Tab');
+    const focus = await page.locator(selector).evaluate(el => {
+      const display = el.parentElement.querySelector('.player-name');
+      const style = getComputedStyle(display);
+      return {
+        focused: document.activeElement === el, readOnly: el.readOnly,
+        opacity: getComputedStyle(el).opacity, visibility: style.visibility,
+        border: style.borderColor, shadow: style.boxShadow,
+      };
+    });
+    assert.ok(focus.focused && focus.readOnly, 'Tab must reach the locked history slot');
+    assert.equal(focus.opacity, '0', 'history must not reopen the editor');
+    assert.equal(focus.visibility, 'visible', 'focused history name must remain visible');
+    assert.equal(focus.border, 'rgb(255, 209, 102)', 'visible history name must have a gold focus border');
+    assert.equal(focus.shadow, 'rgba(255, 209, 102, 0.25) 0px 0px 0px 3px', 'visible history name must have a focus ring');
+    assert.equal((await renderedName(page, 0)).text, edited, 'focus must preserve the saved name');
   });
 
   test(`${pagePath}: editing, storage, shuffle, selection and locked history are preserved`, async t => {
