@@ -113,6 +113,8 @@
   resize: none;
   opacity: 0;
 }
+/* Locked names must show keyboard focus immediately without opening the editor. */
+.court-tpl .player-slot:has(.player[readonly]) .player-name { transition: none; }
 .court-tpl .player:focus:not([readonly]) { opacity: 1; }
 .court-tpl .player-slot:has(.player:focus:not([readonly])) .player-name { visibility: hidden; }
 .court-tpl .player::placeholder { color: rgba(255,255,255,.5); font-weight: 500; }
